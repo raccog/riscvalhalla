@@ -1,0 +1,36 @@
+LIB_SRC  := src/elf.cpp
+TEST_SRC := tests/failures.cpp
+LIB_OBJS  := $(LIB_SRC:%.cpp=obj_dir/%.o)
+TEST_OBJS := $(TEST_SRC:%.cpp=obj_dir/%.o)
+
+CXXFLAGS += -MMD -MP -Wall -Wextra -std=c++20 -Isrc
+
+obj_dir/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+.PHONY: all check tests clean lint
+all: obj_dir/failures
+-include $(LIB_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
+
+# going to add RTL and simulator testbenches here
+tests: obj_dir/failures
+	./obj_dir/failures
+
+obj_dir/failures: $(LIB_OBJS) $(TEST_OBJS)
+	@mkdir -p obj_dir
+	clang++ $(CXXFLAGS) $^ -o $@
+
+clean:
+	rm -rf obj_dir
+
+lint:
+	@echo "No RTL yet - nothing to lint."
+
+.PHONY: riscv-tests
+riscv-tests:
+	make -k -C riscv-tests/isa XLEN=64 RISCV_PREFIX=riscv64-elf-
+
+RVCC      := riscv64-elf-gcc
+RVOBJCOPY := riscv64-elf-objcopy
+RVFLAGS   := -march=rv64gc -mabi=lp64d

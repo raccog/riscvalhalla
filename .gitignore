@@ -1,0 +1,13 @@
+obj_dir/
+obj_lockstep/
+obj_bootload/
+.vscode/
+log.txt*
+*.vcd
+fpga/build/
+vivado*.jou
+vivado*.log
+.Xil/
+clockInfo.txt
+__pycache__/
+venv/
