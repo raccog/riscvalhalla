@@ -1,5 +1,5 @@
-LIB_SRC  := src/elf.cpp
-TEST_SRC := tests/failures.cpp
+LIB_SRC  := src/elf.cpp src/rv64gc.cpp
+TEST_SRC := tests/failures.cpp tests/simulate.cpp
 LIB_OBJS  := $(LIB_SRC:%.cpp=obj_dir/%.o)
 TEST_OBJS := $(TEST_SRC:%.cpp=obj_dir/%.o)
 
@@ -9,15 +9,20 @@ obj_dir/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
+obj_dir/tests/%.o: tests/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
 .PHONY: all check tests clean lint
 all: obj_dir/failures
 -include $(LIB_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
 # going to add RTL and simulator testbenches here
-tests: obj_dir/failures
+tests: obj_dir/failures obj_dir/simulate riscv-tests
 	./obj_dir/failures
+	./obj_dir/simulate
 
-obj_dir/failures: $(LIB_OBJS) $(TEST_OBJS)
+obj_dir/%: $(LIB_OBJS) obj_dir/tests/%.o
 	@mkdir -p obj_dir
 	clang++ $(CXXFLAGS) $^ -o $@
 
