@@ -186,7 +186,6 @@ void Hart::step() {
     Instr instr = decode();
     u64 next_pc = pc + 4;
     switch (instr.opcode()) {
-    case OPCODE_LOAD:
     case OPCODE_JAL:
         if (((pc + instr.immJ()) & 1) == 1) {
             throw Exception(EXCEPTION_INSTR_MISALIGN);
@@ -195,7 +194,31 @@ void Hart::step() {
         next_pc = pc + instr.immJ();
         break;
     case OPCODE_OP_IMM:
+        switch (instr.funct3()) {
+        case OP_IMM_ADDI:
+            regs[instr.rd()] = regs[instr.rs1()] + instr.immI();
+            break;
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
         break;
+    case OPCODE_BRANCH:
+        switch (instr.funct3()) {
+        case BRANCH_BNE:
+            if (((pc + instr.immB()) & 1) == 1) {
+                throw Exception(EXCEPTION_INSTR_MISALIGN);
+            }
+            if (regs[instr.rs1()] != regs[instr.rs2()]) {
+                next_pc = pc + instr.immB();
+            }
+            break;
+        }
+        break;
+    case OPCODE_SYSTEM:
+        // System instructions do nothing right now.
+        // But they do not throw illegal instruction exceptions
+        break;
+    case OPCODE_LOAD:
     default:
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }

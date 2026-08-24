@@ -50,6 +50,21 @@ constexpr u32 LOAD_BYTE_UNSIGNED = 0b100;
 constexpr u32 LOAD_HALF_UNSIGNED = 0b101;
 constexpr u32 LOAD_WORD_UNSIGNED = 0b110;
 
+constexpr u32 OP_IMM_ADDI = 0b000;
+constexpr u32 OP_IMM_SLTI = 0b010;
+constexpr u32 OP_IMM_SLTIU = 0b011;
+constexpr u32 OP_IMM_XORI = 0b100;
+constexpr u32 OP_IMM_ORI = 0b110;
+constexpr u32 OP_IMM_ANDI = 0b111;
+constexpr u32 OP_IMM_SLLI = 0b001;
+constexpr u32 OP_IMM_SRLI_SRAI = 0b101;
+
+constexpr u32 FUNCT7_SRLI = 0b0000000;
+constexpr u32 FUNCT7_SRAI = 0b0100000;
+
+constexpr u32 BRANCH_BEQ = 0b000;
+constexpr u32 BRANCH_BNE = 0b001;
+
 template <unsigned bits>
 i32 sext(u32 value) {
     assert(bits < 32);
