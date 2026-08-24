@@ -37,7 +37,10 @@ struct MemRegion {
     MemRegion(u64 base, u64 size);
 
     bool contains(u64 addr) const;
+    bool contains(u64 addr, u64 len) const;
     u64 fetch(u64 pc) const;
+    u64 read(u64 addr, u64 len) const;
+    void write(u64 addr, u64 len, u64 value);
 };
 
 struct Memory {
@@ -46,16 +49,28 @@ struct Memory {
     Memory();
 
     u64 fetch(u64 pc) const;
+    u64 read(u64 addr, u64 len) const;
+    void write(u64 addr, u64 len, u64 value);
     void addRegion(u64 base, u64 size);
     void addRegion(MemRegion region);
     void loadElf(const Elf &elf);
 };
 
+constexpr usize NUM_REGS = 32;
+
 struct Hart {
     Memory memory;
+    u64 pc;
+    u64 regs[NUM_REGS];
 
     Hart();
 
     void loadElf(const Elf &elf);
+
+    // Puts the hart back into its post-reset state with the PC at `entry`.
+    void reset(u64 entry);
+
+    // Executes a single instruction, throwing an Exception on a fault.
+    void step();
 };
 
