@@ -14,7 +14,7 @@ bool MemRegion::contains(u64 addr, u64 len) const {
 
 Memory::Memory() : regions{} {}
 
-u64 MemRegion::fetch(u64 pc) const {
+u32 MemRegion::fetch(u64 pc) const {
     if (!contains(pc)) {
         throw Exception(EXCEPTION_INSTR_ACCESS);
     }
@@ -25,9 +25,9 @@ u64 MemRegion::fetch(u64 pc) const {
     if (width < 2) {
         throw Exception(EXCEPTION_INSTR_ACCESS);
     }
-    u64 instr = 0;
+    u32 instr;
     for (u64 i = 0; i < width; ++i) {
-        instr |= static_cast<u64>(data[pc - base + i]) << (8 * i);
+        instr |= static_cast<u32>(data[pc - base + i]) << (8 * i);
     }
     return instr;
 }
@@ -52,7 +52,7 @@ void MemRegion::write(u64 addr, u64 len, u64 value) {
     }
 }
 
-u64 Memory::fetch(u64 pc) const {
+u32 Memory::fetch(u64 pc) const {
     // rv64gc includes the C extension, so instructions are 16-bit aligned.
     if (pc & 1) {
         throw Exception(EXCEPTION_INSTR_MISALIGN);
@@ -119,10 +119,73 @@ void Hart::reset(u64 entry) {
 }
 
 void Hart::step() {
-    u64 instr = memory.fetch(pc);
-    // Decode and execute land here. Until they do, every instruction is one
-    // the hart does not know how to run.
+    Instr instr = decode();
     (void)instr;
     throw Exception(EXCEPTION_ILLEGAL_INSTR);
+}
+
+Instr Hart::decode() {
+    u32 raw = memory.fetch(pc);
+    Instr instr{raw};
+    return instr;
+}
+
+u32 Instr::opcode() const {
+    return raw & 0x7f;
+}
+
+bool Instr::isCompressed() const {
+    return (raw & 3);
+}
+
+u32 Instr::rd() const {
+    return (raw >> 7) & 0x1f;
+}
+
+u32 Instr::rs1() const {
+    return (raw >> 15) & 0x1f;
+}
+
+u32 Instr::rs2() const {
+    return (raw >> 20) & 0x1f;
+}
+
+u32 Instr::funct3() const {
+    return (raw >> 12) & 7;
+}
+
+u32 Instr::funct7() const {
+    return (raw >> 25) & 0x7f;
+}
+
+i32 Instr::immI() const {
+    u32 imm = (raw >> 20) & 0xfff;
+    return sext<12>(imm);
+}
+
+i32 Instr::immS() const {
+    u32 imm = ((raw >> 25) & 0x7f) << 5
+        | ((raw << 7) & 0x1f);
+    return sext<12>(imm);
+}
+
+i32 Instr::immB() const {
+    u32 imm = ((raw >> 31) & 1) << 12
+        | ((raw << 7) & 1) << 11
+        | ((raw >> 25) & 0x3f) << 5
+        | ((raw >> 8) & 0xf) << 1;
+    return sext<13>(imm);
+}
+
+i32 Instr::immU() const {
+    return static_cast<i32>(raw & 0xfffff000);
+}
+
+i32 Instr::immJ() const {
+    u32 imm = ((raw >> 31) & 1) << 20
+        | ((raw << 12) & 0xff) << 12
+        | ((raw >> 20) & 1) << 11
+        | ((raw >> 21) & 0x3ff) << 1;
+    return sext<21>(imm);
 }
 

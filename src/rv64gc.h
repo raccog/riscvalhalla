@@ -3,6 +3,7 @@
 #include "common.h"
 #include "elf.h"
 
+#include <cassert>
 #include <map>
 #include <vector>
 
@@ -22,6 +23,13 @@ constexpr u64 EXCEPTION_LOAD_PAGE = 13;
 constexpr u64 EXCEPTION_STORE_PAGE = 15;
 constexpr u64 EXCEPTION_DOUBLE_TRAP = 16;
 
+template <unsigned bits>
+i32 sext(u32 value) {
+    assert(bits < 32);
+    i32 shift = 32 - bits;
+    return (static_cast<i32>(value) << shift) >> shift;
+}
+
 struct Exception {
     u64 code;
     bool interrupt;
@@ -38,7 +46,7 @@ struct MemRegion {
 
     bool contains(u64 addr) const;
     bool contains(u64 addr, u64 len) const;
-    u64 fetch(u64 pc) const;
+    u32 fetch(u64 pc) const;
     u64 read(u64 addr, u64 len) const;
     void write(u64 addr, u64 len, u64 value);
 };
@@ -48,7 +56,7 @@ struct Memory {
 
     Memory();
 
-    u64 fetch(u64 pc) const;
+    u32 fetch(u64 pc) const;
     u64 read(u64 addr, u64 len) const;
     void write(u64 addr, u64 len, u64 value);
     void addRegion(u64 base, u64 size);
@@ -58,6 +66,27 @@ struct Memory {
 
 constexpr usize NUM_REGS = 32;
 
+struct Instr {
+    u32 raw;
+    
+    bool isCompressed() const;
+
+    u32 opcode() const;
+
+    u32 rd() const;
+    u32 rs1() const;
+    u32 rs2() const;
+
+    u32 funct3() const;
+    u32 funct7() const;
+
+    i32 immI() const;
+    i32 immS() const;
+    i32 immB() const;
+    i32 immU() const;
+    i32 immJ() const;
+};
+
 struct Hart {
     Memory memory;
     u64 pc;
@@ -66,6 +95,8 @@ struct Hart {
     Hart();
 
     void loadElf(const Elf &elf);
+
+    Instr decode();
 
     // Puts the hart back into its post-reset state with the PC at `entry`.
     void reset(u64 entry);
