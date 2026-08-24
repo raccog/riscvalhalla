@@ -135,7 +135,7 @@ u32 Instr::opcode() const {
 }
 
 bool Instr::isCompressed() const {
-    return (raw & 3);
+    return ((raw & 3) != 3);
 }
 
 u32 Instr::rd() const {
