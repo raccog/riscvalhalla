@@ -12,6 +12,8 @@ typedef uint64_t ElfXword;
 typedef int64_t ElfSxword;
 typedef uint16_t ElfHalf;
 
+constexpr ElfHalf ET_EXEC = 2;
+constexpr ElfWord PT_LOAD = 1;
 constexpr unsigned EI_NIDENT = 16;
 constexpr unsigned char ELFCLASS64 = 2;
 constexpr unsigned char ELFDATA2LSB = 1;

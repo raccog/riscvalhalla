@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "elf.h"
 
 #include <map>
 #include <vector>
@@ -45,9 +46,16 @@ struct Memory {
     Memory();
 
     u64 fetch(u64 pc) const;
+    void addRegion(u64 base, u64 size);
+    void addRegion(MemRegion region);
+    void loadElf(const Elf &elf);
 };
 
 struct Hart {
     Memory memory;
+
+    Hart();
+
+    void loadElf(const Elf &elf);
 };
 

@@ -31,3 +31,30 @@ u64 Memory::fetch(u64 pc) const {
 
 Exception::Exception(u64 _code, bool _interrupt) : code{_code}, interrupt{_interrupt} {}
 
+void Memory::addRegion(u64 base, u64 size) {
+    regions.insert({base, MemRegion(base, size)});
+}
+
+void Memory::addRegion(MemRegion region) {
+    regions.insert({region.base, region});
+}
+
+void Memory::loadElf(const Elf &elf) {
+    if (elf.header.type != ET_EXEC) {
+        throw std::runtime_error("Tried to load a non-executable ELF file");
+    }
+    for (const auto &segment : elf.segments) {
+        if (segment.header.type == PT_LOAD) {
+            MemRegion region = MemRegion(segment.header.paddr, segment.header.memsz);
+            region.data = segment.data;
+            addRegion(region);
+        }
+    }
+}
+
+Hart::Hart() : memory() {}
+
+void Hart::loadElf(const Elf &elf) {
+    memory.loadElf(elf);
+}
+
