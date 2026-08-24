@@ -25,7 +25,7 @@ u32 MemRegion::fetch(u64 pc) const {
     if (width < 2) {
         throw Exception(EXCEPTION_INSTR_ACCESS);
     }
-    u32 instr;
+    u32 instr = 0;
     for (u64 i = 0; i < width; ++i) {
         instr |= static_cast<u32>(data[pc - base + i]) << (8 * i);
     }
@@ -107,29 +107,6 @@ void Memory::loadElf(const Elf &elf) {
     }
 }
 
-Hart::Hart() : memory(), pc{0}, regs{} {}
-
-void Hart::loadElf(const Elf &elf) {
-    memory.loadElf(elf);
-}
-
-void Hart::reset(u64 entry) {
-    pc = entry;
-    std::fill(std::begin(regs), std::end(regs), 0);
-}
-
-void Hart::step() {
-    Instr instr = decode();
-    (void)instr;
-    throw Exception(EXCEPTION_ILLEGAL_INSTR);
-}
-
-Instr Hart::decode() {
-    u32 raw = memory.fetch(pc);
-    Instr instr{raw};
-    return instr;
-}
-
 u32 Instr::opcode() const {
     return raw & 0x7f;
 }
@@ -187,5 +164,41 @@ i32 Instr::immJ() const {
         | ((raw >> 20) & 1) << 11
         | ((raw >> 21) & 0x3ff) << 1;
     return sext<21>(imm);
+}
+
+Hart::Hart() : memory(), pc{0}, regs{} {}
+
+void Hart::loadElf(const Elf &elf) {
+    memory.loadElf(elf);
+}
+
+void Hart::reset(u64 entry) {
+    pc = entry;
+    std::fill(std::begin(regs), std::end(regs), 0);
+}
+
+Instr Hart::decode() {
+    u32 raw = memory.fetch(pc);
+    return Instr{raw};
+}
+
+void Hart::step() {
+    Instr instr = decode();
+    u64 next_pc = pc + 4;
+    switch (instr.opcode()) {
+    case OPCODE_LOAD:
+    case OPCODE_JAL:
+        if (((pc + instr.immJ()) & 1) == 1) {
+            throw Exception(EXCEPTION_INSTR_MISALIGN);
+        }
+        regs[instr.rd()] = pc + 4;
+        next_pc = pc + instr.immJ();
+        break;
+    case OPCODE_OP_IMM:
+        break;
+    default:
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    pc = next_pc;
 }
 

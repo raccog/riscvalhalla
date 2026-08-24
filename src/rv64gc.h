@@ -23,6 +23,33 @@ constexpr u64 EXCEPTION_LOAD_PAGE = 13;
 constexpr u64 EXCEPTION_STORE_PAGE = 15;
 constexpr u64 EXCEPTION_DOUBLE_TRAP = 16;
 
+constexpr u32 OPCODE_LOAD = 0b0000011;
+constexpr u32 OPCODE_LOAD_FP = 0b0000111;
+constexpr u32 OPCODE_MISC_MEM = 0b0001111;
+constexpr u32 OPCODE_OP_IMM = 0b0010011;
+constexpr u32 OPCODE_AUIPC = 0b0010111;
+constexpr u32 OPCODE_OP_IMM_32 = 0b0011011;
+constexpr u32 OPCODE_STORE = 0b0100011;
+constexpr u32 OPCODE_STORE_FP = 0b0100111;
+constexpr u32 OPCODE_AMO = 0b0101111;
+constexpr u32 OPCODE_OP = 0b0110011;
+constexpr u32 OPCODE_LUI = 0b0110111;
+constexpr u32 OPCODE_MADD = 0b1000011;
+constexpr u32 OPCODE_MSUB = 0b1000111;
+constexpr u32 OPCODE_OP_FP = 0b1010011;
+constexpr u32 OPCODE_BRANCH = 0b1100011;
+constexpr u32 OPCODE_JALR = 0b1100111;
+constexpr u32 OPCODE_JAL = 0b1101111;
+constexpr u32 OPCODE_SYSTEM = 0b1110011;
+
+constexpr u32 LOAD_BYTE = 0b000;
+constexpr u32 LOAD_HALF = 0b001;
+constexpr u32 LOAD_WORD = 0b010;
+constexpr u32 LOAD_DOUBLE = 0b011;
+constexpr u32 LOAD_BYTE_UNSIGNED = 0b100;
+constexpr u32 LOAD_HALF_UNSIGNED = 0b101;
+constexpr u32 LOAD_WORD_UNSIGNED = 0b110;
+
 template <unsigned bits>
 i32 sext(u32 value) {
     assert(bits < 32);
