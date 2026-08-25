@@ -103,6 +103,7 @@ constexpr u32 BRANCH_BGEU = 0b111;
 
 constexpr u32 SYSTEM_ECALL = 0;
 constexpr u32 SYSTEM_EBREAK = 1;
+constexpr u32 SYSTEM_MRET = 0x302;
 
 constexpr unsigned CSR_REGS = 4096;
 
@@ -239,11 +240,13 @@ struct CsrEntry {
 
 struct Csrs {
 private:
-    u64 regs[CSR_REGS];
     std::bitset<CSR_REGS> implemented;
     std::map<u16, CsrEntry> table;
 
+    void implement(const CsrEntry &entry);
+
 public:
+    u64 regs[CSR_REGS];
     u64 privilege = PRIV_M;
 
     Csrs();
@@ -270,7 +273,8 @@ struct Hart {
     Instr decode();
     u64 execute();
 
-    void trapEntry();
+    void trapEntry(const Exception &e);
+    void trapExit();
 
     // Puts the hart back into its post-reset state with the PC at `entry`.
     void reset(u64 entry);

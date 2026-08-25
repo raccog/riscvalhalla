@@ -176,12 +176,20 @@ void Registers::clear() {
     std::fill(std::begin(regs), std::end(regs), 0);
 }
 
-Csrs::Csrs() : regs(), implemented(), table() {
-    implemented.set(MISA);
-    table[MISA] = {(2ull << 62), 0, ~0ull, MISA};
-    implemented.set(MHARTID);
-    table[MHARTID] = {0, 0, ~0ull, MHARTID};
+Csrs::Csrs() {
+    implement({(2ull << 62), 0, ~0ull, MISA});
+    implement({0, 0, ~0ull, MHARTID});
+    implement({0, ~0ull, ~0ull, MTVEC});
+    implement({0, 0x1888, 0x1888, MSTATUS});
+    implement({0, ~0ull, ~0ull, MEPC});
+    implement({0, ~0ull, 0x800000000000000f, MCAUSE});
+    implement({0, 0x888, 0x888, MIE});
     reset();
+}
+
+void Csrs::implement(const CsrEntry &entry) {
+    implemented.set(entry.addr);
+    table[entry.addr] = entry;
 }
 
 void Csrs::reset() {
@@ -238,7 +246,7 @@ void Csrs::bitclear(unsigned addr, u64 mask) {
     write(addr, read(addr) & ~mask);
 }
 
-Hart::Hart() : memory(), pc{0}, regs{}, csrs() {}
+Hart::Hart() : pc{0} {}
 
 void Hart::loadElf(const Elf &elf) {
     memory.loadElf(elf);
@@ -557,6 +565,9 @@ u64 Hart::execute() {
                 break;
             case SYSTEM_EBREAK:
                 break;
+            case SYSTEM_MRET:
+                trapExit();
+                break;
             }
             break;
         case SYSTEM_CSRRW: {
@@ -615,7 +626,32 @@ u64 Hart::execute() {
     return next_pc;
 }
 
-void Hart::trapEntry() {
+void Hart::trapEntry(const Exception &e) {
+    // Save PC to MEPC
+    csrs.regs[MEPC] = pc;
+    // Save cause and interrupt bit to MCAUSE
+    csrs.regs[MCAUSE] = (e.code & 0x3f) | (e.interrupt) ? (1ull << 63) : 0;
+
+    u64 mstatus = csrs.regs[MSTATUS];
+    // Disable interrupts
+    mstatus &= ~(1ull << 3);
+    // Set privilege to M mode
+    mstatus |= (PRIV_M << 11);
+    csrs.regs[MSTATUS] = mstatus;
+
+    // Jump to trap handler
+    pc = csrs.regs[MTVEC];
+}
+
+void Hart::trapExit() {
+    // Enable interrupts
+    csrs.regs[MSTATUS] |= 1ull << 3;
+    // Set privilege to user mode
+    // TODO: Set to supervisor instead
+    csrs.regs[MSTATUS] &= ~(PRIV_M << 11);
+
+    // Jump to return address
+    pc = csrs.regs[MEPC];
 }
 
 void Hart::step() {
@@ -625,7 +661,7 @@ void Hart::step() {
         if (!halted)
             pc = next_pc;
     } catch (const Exception& e) {
-        trapEntry();
+        trapEntry(e);
     }
 }
 
