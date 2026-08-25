@@ -135,18 +135,18 @@ u32 Instr::funct7() const {
     return (raw >> 25) & 0x7f;
 }
 
-i32 Instr::immI() const {
+i64 Instr::immI() const {
     u32 imm = (raw >> 20) & 0xfff;
     return sext<12>(imm);
 }
 
-i32 Instr::immS() const {
+i64 Instr::immS() const {
     u32 imm = ((raw >> 25) & 0x7f) << 5
         | ((raw << 7) & 0x1f);
     return sext<12>(imm);
 }
 
-i32 Instr::immB() const {
+i64 Instr::immB() const {
     u32 imm = ((raw >> 31) & 1) << 12
         | ((raw << 7) & 1) << 11
         | ((raw >> 25) & 0x3f) << 5
@@ -154,11 +154,11 @@ i32 Instr::immB() const {
     return sext<13>(imm);
 }
 
-i32 Instr::immU() const {
-    return static_cast<i32>(raw & 0xfffff000);
+i64 Instr::immU() const {
+    return static_cast<i64>(raw & 0xfffff000);
 }
 
-i32 Instr::immJ() const {
+i64 Instr::immJ() const {
     u32 imm = ((raw >> 31) & 1) << 20
         | ((raw << 12) & 0xff) << 12
         | ((raw >> 20) & 1) << 11
@@ -193,10 +193,36 @@ void Hart::step() {
         regs[instr.rd()] = pc + 4;
         next_pc = pc + instr.immJ();
         break;
+    case OPCODE_LUI:
+        regs[instr.rd()] = sext<32>(instr.immU());
+        break;
+    case OPCODE_AUIPC:
+        regs[instr.rd()] = pc + instr.immU();
+        break;
     case OPCODE_OP_IMM:
         switch (instr.funct3()) {
         case OP_IMM_ADDI:
             regs[instr.rd()] = regs[instr.rs1()] + instr.immI();
+            break;
+        case OP_IMM_ORI:
+            regs[instr.rd()] = regs[instr.rs1()] | instr.immI();
+            break;
+        case OP_IMM_SLLI: {
+            u64 shift = instr.immI() & 0x3f;
+            if (shift >= 64) {
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
+            regs[instr.rd()] = regs[instr.rs1()] << shift;
+            break;
+        }
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
+        break;
+    case OPCODE_OP_IMM_32:
+        switch (instr.funct3()) {
+        case OP_IMM_32_ADDIW:
+            regs[instr.rd()] = sext<32>(regs[instr.rs1()] + instr.immI());
             break;
         default:
             throw Exception(EXCEPTION_ILLEGAL_INSTR);
@@ -205,18 +231,40 @@ void Hart::step() {
     case OPCODE_BRANCH:
         switch (instr.funct3()) {
         case BRANCH_BNE:
-            if (((pc + instr.immB()) & 1) == 1) {
-                throw Exception(EXCEPTION_INSTR_MISALIGN);
-            }
             if (regs[instr.rs1()] != regs[instr.rs2()]) {
+                if (((pc + instr.immB()) & 1) == 1) {
+                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                }
                 next_pc = pc + instr.immB();
             }
             break;
+        case BRANCH_BEQ:
+            if (regs[instr.rs1()] == regs[instr.rs2()]) {
+                if (((pc + instr.immB()) & 1) == 1) {
+                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                }
+                next_pc = pc + instr.immB();
+            }
+            break;
+        case BRANCH_BGE:
+            if (static_cast<i64>(regs[instr.rs1()])
+                    >= static_cast<i64>(regs[instr.rs2()])) {
+                if (((pc + instr.immB()) & 1) == 1) {
+                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                }
+                next_pc = pc + instr.immB();
+            }
+            break;
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
         }
         break;
     case OPCODE_SYSTEM:
         // System instructions do nothing right now.
         // But they do not throw illegal instruction exceptions
+        break;
+    case OPCODE_MISC_MEM:
+        // Fence instructions also do nothing yet.
         break;
     case OPCODE_LOAD:
     default:

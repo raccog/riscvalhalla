@@ -59,17 +59,29 @@ constexpr u32 OP_IMM_ANDI = 0b111;
 constexpr u32 OP_IMM_SLLI = 0b001;
 constexpr u32 OP_IMM_SRLI_SRAI = 0b101;
 
+constexpr u32 OP_IMM_32_ADDIW = 0b000;
+constexpr u32 OP_IMM_32_SLLIW = 0b001;
+constexpr u32 OP_IMM_32_SRLIW_SRAIW = 0b101;
+
+constexpr u32 OP_32_ADDW_SUBW = 0b000;
+constexpr u32 OP_32_SLLW = 0b001;
+constexpr u32 OP_32_SRLW_SRAW = 0b101;
+
 constexpr u32 FUNCT7_SRLI = 0b0000000;
 constexpr u32 FUNCT7_SRAI = 0b0100000;
 
 constexpr u32 BRANCH_BEQ = 0b000;
 constexpr u32 BRANCH_BNE = 0b001;
+constexpr u32 BRANCH_BLT = 0b100;
+constexpr u32 BRANCH_BGE = 0b101;
+constexpr u32 BRANCH_BLTU = 0b110;
+constexpr u32 BRANCH_BGEU = 0b111;
 
 template <unsigned bits>
-i32 sext(u32 value) {
-    assert(bits < 32);
-    i32 shift = 32 - bits;
-    return (static_cast<i32>(value) << shift) >> shift;
+i64 sext(u64 value) {
+    assert(bits < 64);
+    i64 shift = 64 - bits;
+    return (static_cast<i64>(value) << shift) >> shift;
 }
 
 struct Exception {
@@ -122,11 +134,11 @@ struct Instr {
     u32 funct3() const;
     u32 funct7() const;
 
-    i32 immI() const;
-    i32 immS() const;
-    i32 immB() const;
-    i32 immU() const;
-    i32 immJ() const;
+    i64 immI() const;
+    i64 immS() const;
+    i64 immB() const;
+    i64 immU() const;
+    i64 immJ() const;
 };
 
 struct Hart {
