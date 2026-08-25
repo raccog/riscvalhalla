@@ -6,6 +6,7 @@
 #include <bitset>
 #include <cassert>
 #include <map>
+#include <optional>
 #include <vector>
 
 constexpr u64 EXCEPTION_INSTR_MISALIGN = 0;
@@ -132,6 +133,7 @@ constexpr unsigned MSCRATCH = 0x340;
 constexpr unsigned MEPC = 0x341;
 constexpr unsigned MCAUSE = 0x342;
 constexpr unsigned MTVAL = 0x343;
+constexpr unsigned MIP = 0x344;
 constexpr unsigned SATP = 0x180;
 constexpr unsigned PMPCFG0 = 0x3a0;
 constexpr unsigned PMPADDR0 = 0x3b0;
@@ -240,6 +242,7 @@ struct CsrEntry {
     u64 writeMask;
     u64 readMask;
     u16 addr;
+    std::optional<u16> alias = std::nullopt;
 };
 
 struct Csrs {

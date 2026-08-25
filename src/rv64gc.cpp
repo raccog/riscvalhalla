@@ -179,9 +179,18 @@ void Registers::clear() {
 Csrs::Csrs() {
     implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, 0, ~0ull, MHARTID});
+    implement({0, 0, ~0ull, MVENDORID});
+    implement({0, 0, ~0ull, MIMPID});
+    implement({0, 0, ~0ull, MARCHID});
+    implement({0, ~0ull, ~0ull, MEDELEG});
+    implement({0, ~0ull, ~0ull, MIDELEG});
+    implement({0, ~0ull, ~0ull, MSCRATCH});
     implement({0, ~0ull, ~0ull, MTVEC});
     implement({0, ~0ull, ~0ull, MTVAL});
+    implement({0, ~0ull, ~0ull, MIP});
     implement({0, 0x1888, 0x1888, MSTATUS});
+    implement({0, 0x122, 0x122, SSTATUS});
+    table[SSTATUS].alias = MSTATUS;
     implement({0, ~0ull, ~0ull, MEPC});
     implement({0, ~0ull, 0x800000000000001f, MCAUSE});
     implement({0, 0x888, 0x888, MIE});
@@ -218,6 +227,7 @@ u64 Csrs::read(unsigned addr) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     const CsrEntry &entry = table[addr];
+    addr = entry.alias ? *entry.alias : addr;
     return regs[addr] & entry.readMask;
 }
 
@@ -239,6 +249,7 @@ void Csrs::write(unsigned addr, u64 value) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     const CsrEntry &entry = table[addr];
+    addr = entry.alias ? *entry.alias : addr;
     regs[addr] = (value & entry.writeMask) | (regs[addr] & ~entry.writeMask);
 }
 
