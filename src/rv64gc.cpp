@@ -322,7 +322,7 @@ u64 Hart::execute() {
             regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 4);
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_STORE:
@@ -341,7 +341,7 @@ u64 Hart::execute() {
             memory.write(regs[instr.rs1()] + instr.immS(), 8, regs[instr.rs2()]);
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_OP:
@@ -355,7 +355,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = regs[instr.rs1()] - regs[instr.rs2()];
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         case OP_SLL:
@@ -387,11 +387,11 @@ u64 Hart::execute() {
                     >> regs[instr.rs2()];
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_OP_IMM:
@@ -419,7 +419,7 @@ u64 Hart::execute() {
         case OP_IMM_SLLI: {
             u64 shift = instr.immI() & 0x3f;
             if (shift >= 64) {
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             regs[instr.rd()] = regs[instr.rs1()] << shift;
             break;
@@ -427,7 +427,7 @@ u64 Hart::execute() {
         case OP_IMM_SRLI_SRAI: {
             u64 shift = instr.immI() & 0x3f;
             if (shift >= 64) {
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             switch (instr.immI() >> 6) {
             case FUNCT6_SRLI:
@@ -437,12 +437,12 @@ u64 Hart::execute() {
                 regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) >> shift;
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         }
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_OP_IMM_32:
@@ -464,11 +464,11 @@ u64 Hart::execute() {
                        >> instr.immI());
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_OP_32:
@@ -482,7 +482,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = sext<32>(regs[instr.rs1()] - regs[instr.rs2()]);
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         case OP_SLL:
@@ -500,11 +500,11 @@ u64 Hart::execute() {
                        >> regs[instr.rs2()]);
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_BRANCH:
@@ -560,7 +560,7 @@ u64 Hart::execute() {
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_SYSTEM:
@@ -575,7 +575,7 @@ u64 Hart::execute() {
                 } else if (csrs.privilege == PRIV_U) {
                     throw Exception(EXCEPTION_U_ECALL, 0);
                 }
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
                 break;
             }
             case SYSTEM_EBREAK:
@@ -585,7 +585,7 @@ u64 Hart::execute() {
                 next_pc = pc;
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
         case SYSTEM_CSRRW: {
@@ -596,7 +596,7 @@ u64 Hart::execute() {
                     regs[instr.rd()] = old;
                 break;
             } catch (Exception &e) {
-                e.val = pc;
+                e.val = instr.raw;
                 throw e;
             }
         }
@@ -608,7 +608,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = old;
                 break;
             } catch (Exception &e) {
-                e.val = pc;
+                e.val = instr.raw;
                 throw e;
             }
         }
@@ -620,7 +620,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = old;
                 break;
             } catch (Exception &e) {
-                e.val = pc;
+                e.val = instr.raw;
                 throw e;
             }
         }
@@ -632,7 +632,7 @@ u64 Hart::execute() {
                     regs[instr.rd()] = old;
                 break;
             } catch (Exception &e) {
-                e.val = pc;
+                e.val = instr.raw;
                 throw e;
             }
         }
@@ -644,7 +644,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = old;
                 break;
             } catch (Exception &e) {
-                e.val = pc;
+                e.val = instr.raw;
                 throw e;
             }
         }
@@ -656,12 +656,12 @@ u64 Hart::execute() {
                 regs[instr.rd()] = old;
                 break;
             } catch (Exception &e) {
-                e.val = pc;
+                e.val = instr.raw;
                 throw e;
             }
         }
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
         }
         break;
     case OPCODE_MISC_MEM:
@@ -669,7 +669,7 @@ u64 Hart::execute() {
         // But they do not throw illegal instruction exceptions
         break;
     default:
-        throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
     }
     return next_pc;
 }
