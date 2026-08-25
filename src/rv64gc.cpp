@@ -407,11 +407,12 @@ void Hart::step() {
         case OP_SRL_SRA:
             switch (instr.funct7()) {
             case FUNCT7_SRL:
-                regs[instr.rd()] = sext<32>(regs[instr.rs1()] << regs[instr.rs2()]);
+                regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
+                        >> regs[instr.rs2()]);
                 break;
             case FUNCT7_SRA:
-                regs[instr.rd()] = sext<32>(static_cast<i64>(regs[instr.rs1()])
-                       << regs[instr.rs2()]);
+                regs[instr.rd()] = sext<32>(static_cast<i32>(regs[instr.rs1()])
+                       >> regs[instr.rs2()]);
                 break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR);
