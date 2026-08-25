@@ -187,7 +187,7 @@ u64 Csrs::read(unsigned addr) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
     // Throw exception for accessing debug registers
-    if ((addr & 0x7b0) == 0x7b0) {
+    if ((addr & 0xff0) == 0x7b0) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
     return regs[addr];
@@ -203,14 +203,14 @@ void Csrs::write(unsigned addr, u64 value) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
     // Throw exception for accessing debug registers
-    if ((addr & 0x7b0) == 0x7b0) {
+    if ((addr & 0xff0) == 0x7b0) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
     regs[addr] = value;
 }
 
 void Csrs::bitset(unsigned addr, u64 mask) {
-    write(addr, read(addr) & mask);
+    write(addr, read(addr) | mask);
 }
 
 void Csrs::bitclear(unsigned addr, u64 mask) {
@@ -522,11 +522,11 @@ void Hart::step() {
         }
         break;
     case OPCODE_SYSTEM:
-        // Failed system calls do not throw exceptions for now.
-        // This is to allow tests to work without implementing
-        // CSR registers yet.
         switch (instr.funct3()) {
-        case SYSTEM_ECALL:
+        case 0b000:
+            // Failed system calls do not throw exceptions for now.
+            // This is to allow tests to work without implementing
+            // CSR registers yet.
             switch (instr.func12()) {
             case SYSTEM_ECALL:
                 // Temporary testing harness
@@ -536,14 +536,13 @@ void Hart::step() {
                 break;
             case SYSTEM_EBREAK:
                 break;
-            default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
             }
             break;
         case SYSTEM_CSRRW: {
-            u64 old = csrs.read(instr.func12());
+            u64 old = (instr.rd() != 0) ? csrs.read(instr.func12()) : 0;
             csrs.write(instr.func12(), regs[instr.rs1()]);
-            regs[instr.rd()] = old;
+            if (instr.rd() != 0)
+                regs[instr.rd()] = old;
             break;
         }
         case SYSTEM_CSRRS: {
@@ -556,14 +555,15 @@ void Hart::step() {
         case SYSTEM_CSRRC: {
             u64 old = csrs.read(instr.func12());
             if (instr.rs1() != 0)
-                csrs.bitset(instr.func12(), regs[instr.rs1()]);
+                csrs.bitclear(instr.func12(), regs[instr.rs1()]);
             regs[instr.rd()] = old;
             break;
         }
         case SYSTEM_CSRRWI: {
-            u64 old = csrs.read(instr.func12());
+            u64 old = (instr.rd() != 0) ? csrs.read(instr.func12()) : 0;
             csrs.write(instr.func12(), instr.rs1());
-            regs[instr.rd()] = old;
+            if (instr.rd() != 0)
+                regs[instr.rd()] = old;
             break;
         }
         case SYSTEM_CSRRSI: {
@@ -576,7 +576,7 @@ void Hart::step() {
         case SYSTEM_CSRRCI: {
             u64 old = csrs.read(instr.func12());
             if (instr.rs1() != 0)
-                csrs.bitset(instr.func12(), instr.rs1());
+                csrs.bitclear(instr.func12(), instr.rs1());
             regs[instr.rd()] = old;
             break;
         }
