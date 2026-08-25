@@ -200,11 +200,36 @@ void Hart::step() {
         regs[instr.rd()] = pc + 4;
         next_pc = pc + instr.immJ();
         break;
+    case OPCODE_JALR:
+        regs[instr.rd()] = pc + 4;
+        next_pc = (regs[instr.rs1()] + instr.immI()) & ~1u;
+        break;
     case OPCODE_LUI:
         regs[instr.rd()] = instr.immU();
         break;
     case OPCODE_AUIPC:
         regs[instr.rd()] = pc + instr.immU();
+        break;
+    case OPCODE_OP:
+        switch (instr.funct3()) {
+        case OP_ADD_SUB:
+            switch (instr.funct7()) {
+            case FUNCT7_ADD:
+                regs[instr.rd()] = regs[instr.rs1()] + regs[instr.rs2()];
+                break;
+            case FUNCT7_SUB:
+                regs[instr.rd()] = regs[instr.rs1()] - regs[instr.rs2()];
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
+            break;
+        case OP_SLL:
+            regs[instr.rd()] = regs[instr.rs1()] << regs[instr.rs2()];
+            break;
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
         break;
     case OPCODE_OP_IMM:
         switch (instr.funct3()) {
@@ -279,6 +304,8 @@ void Hart::step() {
             break;
         case SYSTEM_EBREAK:
             break;
+        //default:
+        //    throw Exception(EXCEPTION_ILLEGAL_INSTR);
         }
         break;
     case OPCODE_MISC_MEM:

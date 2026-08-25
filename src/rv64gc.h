@@ -50,6 +50,20 @@ constexpr u32 LOAD_BYTE_UNSIGNED = 0b100;
 constexpr u32 LOAD_HALF_UNSIGNED = 0b101;
 constexpr u32 LOAD_WORD_UNSIGNED = 0b110;
 
+constexpr u32 OP_ADD_SUB = 0b000;
+constexpr u32 OP_SLL = 0b001;
+constexpr u32 OP_SLT = 0b010;
+constexpr u32 OP_SLTU = 0b011;
+constexpr u32 OP_XOR = 0b100;
+constexpr u32 OP_SRL_SRA = 0b101;
+constexpr u32 OP_OR = 0b110;
+constexpr u32 OP_AND = 0b111;
+
+constexpr u32 FUNCT7_ADD = 0b0000000;
+constexpr u32 FUNCT7_SUB = 0b0100000;
+constexpr u32 FUNCT7_SRL = 0b0000000;
+constexpr u32 FUNCT7_SRA = 0b0100000;
+
 constexpr u32 OP_IMM_ADDI = 0b000;
 constexpr u32 OP_IMM_SLTI = 0b010;
 constexpr u32 OP_IMM_SLTIU = 0b011;
