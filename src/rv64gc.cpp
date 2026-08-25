@@ -282,9 +282,34 @@ void Hart::step() {
                 next_pc = pc + instr.immB();
             }
             break;
+        case BRANCH_BLT:
+            if (static_cast<i64>(regs[instr.rs1()])
+                    < static_cast<i64>(regs[instr.rs2()])) {
+                if (((pc + instr.immB()) & 1) == 1) {
+                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                }
+                next_pc = pc + instr.immB();
+            }
+            break;
         case BRANCH_BGE:
             if (static_cast<i64>(regs[instr.rs1()])
                     >= static_cast<i64>(regs[instr.rs2()])) {
+                if (((pc + instr.immB()) & 1) == 1) {
+                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                }
+                next_pc = pc + instr.immB();
+            }
+            break;
+        case BRANCH_BLTU:
+            if (regs[instr.rs1()] < regs[instr.rs2()]) {
+                if (((pc + instr.immB()) & 1) == 1) {
+                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                }
+                next_pc = pc + instr.immB();
+            }
+            break;
+        case BRANCH_BGEU:
+            if (regs[instr.rs1()] >= regs[instr.rs2()]) {
                 if (((pc + instr.immB()) & 1) == 1) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN);
                 }
