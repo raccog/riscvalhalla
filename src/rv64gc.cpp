@@ -176,8 +176,16 @@ void Registers::clear() {
     std::fill(std::begin(regs), std::end(regs), 0);
 }
 
+Csrs::Csrs() : regs(), implemented() {
+    implemented.set(MISA);
+    implemented.set(MHARTID);
+    reset();
+}
+
 void Csrs::reset() {
     std::fill(std::begin(regs), std::end(regs), 0);
+    regs[MISA] = (2ull << 62);
+    regs[MHARTID] = 0;
     privilege = PRIV_M;
 }
 
@@ -217,7 +225,7 @@ void Csrs::bitclear(unsigned addr, u64 mask) {
     write(addr, read(addr) & ~mask);
 }
 
-Hart::Hart() : memory(), pc{0}, regs{} {}
+Hart::Hart() : memory(), pc{0}, regs{}, csrs() {}
 
 void Hart::loadElf(const Elf &elf) {
     memory.loadElf(elf);
@@ -235,7 +243,7 @@ Instr Hart::decode() {
     return Instr{raw};
 }
 
-void Hart::step() {
+u64 Hart::execute() {
     Instr instr = decode();
     u64 next_pc = pc + 4;
     switch (instr.opcode()) {
@@ -591,8 +599,23 @@ void Hart::step() {
     default:
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
-    regs[0] = 0;
-    if (!halted)
-        pc = next_pc;
+    return next_pc;
+}
+
+void Hart::trapEntry() {
+}
+
+void Hart::step() {
+    try {
+        u64 next_pc = execute();
+        regs[0] = 0;
+        if (!halted)
+            pc = next_pc;
+    } catch (const Exception& e) {
+        if (e.code == EXCEPTION_ILLEGAL_INSTR) {
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
+        trapEntry();
+    }
 }
 

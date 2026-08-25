@@ -13,14 +13,17 @@ obj_dir/tests/%.o: tests/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-.PHONY: all check tests clean lint
+.PHONY: all check tests clean lint sim
 all: obj_dir/failures
 -include $(LIB_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
-# going to add RTL and simulator testbenches here
+# going to add RTL testbenches here
 tests: obj_dir/failures obj_dir/simulate riscv-tests
 	./obj_dir/failures
 	./obj_dir/simulate
+
+sim: obj_dir/simulate riscv-tests
+	./obj_dir/simulate $(filter-out $@,$(MAKECMDGOALS))
 
 obj_dir/%: $(LIB_OBJS) obj_dir/tests/%.o
 	@mkdir -p obj_dir

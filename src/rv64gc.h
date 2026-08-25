@@ -3,6 +3,7 @@
 #include "common.h"
 #include "elf.h"
 
+#include <bitset>
 #include <cassert>
 #include <map>
 #include <vector>
@@ -116,6 +117,26 @@ constexpr u64 PRIV_U = 0b00;
 constexpr u64 PRIV_S = 0b01;
 constexpr u64 PRIV_M = 0b11;
 
+constexpr unsigned MVENDORID = 0xf11;
+constexpr unsigned MARCHID = 0xf12;
+constexpr unsigned MIMPID = 0xf13;
+constexpr unsigned MHARTID = 0xf14;
+constexpr unsigned MSTATUS = 0x300;
+constexpr unsigned MISA = 0x301;
+constexpr unsigned MEDELEG = 0x302;
+constexpr unsigned MIDELEG = 0x303;
+constexpr unsigned MIE = 0x304;
+constexpr unsigned MTVEC = 0x305;
+constexpr unsigned MSCRATCH = 0x340;
+constexpr unsigned MEPC = 0x341;
+constexpr unsigned MCAUSE = 0x342;
+constexpr unsigned MTVAL = 0x343;
+constexpr unsigned SATP = 0x180;
+constexpr unsigned PMPCFG0 = 0x3a0;
+constexpr unsigned PMPADDR0 = 0x3b0;
+constexpr unsigned MNSTATUS = 0x744;
+constexpr unsigned SSTATUS = 0x100;
+
 template <unsigned bits>
 i64 sext(u64 value) {
     assert(bits < 64);
@@ -212,9 +233,12 @@ public:
 struct Csrs {
 private:
     u64 regs[CSR_REGS];
+    std::bitset<CSR_REGS> implemented;
 
 public:
     u64 privilege = PRIV_M;
+
+    Csrs();
 
     void reset();
 
@@ -236,6 +260,9 @@ struct Hart {
     void loadElf(const Elf &elf);
 
     Instr decode();
+    u64 execute();
+
+    void trapEntry();
 
     // Puts the hart back into its post-reset state with the PC at `entry`.
     void reset(u64 entry);
