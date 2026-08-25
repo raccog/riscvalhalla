@@ -136,6 +136,9 @@ constexpr unsigned SATP = 0x180;
 constexpr unsigned PMPCFG0 = 0x3a0;
 constexpr unsigned PMPADDR0 = 0x3b0;
 constexpr unsigned MNSTATUS = 0x744;
+constexpr unsigned TSELECT = 0x7a0;
+constexpr unsigned TDATA1 = 0x7a1;
+constexpr unsigned TDATA2 = 0x7a2;
 constexpr unsigned SSTATUS = 0x100;
 
 template <unsigned bits>

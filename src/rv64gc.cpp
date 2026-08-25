@@ -185,6 +185,9 @@ Csrs::Csrs() {
     implement({0, ~0ull, ~0ull, MEPC});
     implement({0, ~0ull, 0x800000000000001f, MCAUSE});
     implement({0, 0x888, 0x888, MIE});
+    implement({0, 0, ~0ull, TSELECT});
+    implement({0, 0, ~0ull, TDATA1});
+    implement({0, ~0ull, ~0ull, TDATA2});
     reset();
 }
 
