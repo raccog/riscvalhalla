@@ -172,6 +172,10 @@ i64 Instr::immJ() const {
     return sext<21>(imm);
 }
 
+void Registers::clear() {
+    std::fill(std::begin(regs), std::end(regs), 0);
+}
+
 Hart::Hart() : memory(), pc{0}, regs{} {}
 
 void Hart::loadElf(const Elf &elf) {
@@ -180,8 +184,8 @@ void Hart::loadElf(const Elf &elf) {
 
 void Hart::reset(u64 entry) {
     pc = entry;
-    std::fill(std::begin(regs), std::end(regs), 0);
     halted = false;
+    regs.clear();
 }
 
 Instr Hart::decode() {

@@ -159,10 +159,37 @@ struct Instr {
     i64 immJ() const;
 };
 
+struct Registers {
+private:
+    u64 regs[NUM_REGS];
+    u64 trashReg;
+
+public:
+    void clear();
+
+    u64& operator[](size_t index) {
+        if (index >= NUM_REGS) {
+            throw std::out_of_range("Register index out of bounds");
+        }
+        if (index == 0) {
+            // This trashes anything that would set the x0 register
+            return trashReg;
+        }
+        return regs[index];
+    }
+
+    const u64& operator[](size_t index) const {
+        if (index >= NUM_REGS) {
+            throw std::out_of_range("Register index out of bounds");
+        }
+        return regs[index];
+    }
+};
+
 struct Hart {
     Memory memory;
     u64 pc;
-    u64 regs[NUM_REGS];
+    Registers regs;
     bool halted = false;
 
     Hart();
