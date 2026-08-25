@@ -205,8 +205,8 @@ void Hart::step() {
         next_pc = pc + instr.immJ();
         break;
     case OPCODE_JALR:
-        regs[instr.rd()] = pc + 4;
         next_pc = (regs[instr.rs1()] + instr.immI()) & ~1u;
+        regs[instr.rd()] = pc + 4;
         break;
     case OPCODE_LUI:
         regs[instr.rd()] = instr.immU();
@@ -372,11 +372,12 @@ void Hart::step() {
         case OP_IMM_32_SRLIW_SRAIW:
             switch (instr.funct7()) {
             case FUNCT7_SRLI:
-                regs[instr.rd()] = sext<32>(regs[instr.rs1()] << instr.immI());
+                regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
+                   >> instr.immI());
                 break;
             case FUNCT7_SRAI:
-                regs[instr.rd()] = sext<32>(static_cast<i64>(regs[instr.rs1()])
-                       << instr.immI());
+                regs[instr.rd()] = sext<32>(static_cast<i32>(regs[instr.rs1()])
+                       >> instr.immI());
                 break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR);
