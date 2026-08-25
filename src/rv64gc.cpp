@@ -402,7 +402,8 @@ void Hart::step() {
             }
             break;
         case OP_SLL:
-            regs[instr.rd()] = sext<32>(regs[instr.rs1()] << regs[instr.rs2()]);
+            regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
+                    << regs[instr.rs2()]);
             break;
         case OP_SRL_SRA:
             switch (instr.funct7()) {
