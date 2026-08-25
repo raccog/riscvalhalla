@@ -277,6 +277,35 @@ void Hart::step() {
         case OP_SLL:
             regs[instr.rd()] = regs[instr.rs1()] << regs[instr.rs2()];
             break;
+        case OP_SLT:
+            regs[instr.rd()] = (static_cast<i64>(regs[instr.rs1()])
+                    < static_cast<i64>(regs[instr.rs2()])) ? 1 : 0;
+            break;
+        case OP_SLTU:
+            regs[instr.rd()] = (regs[instr.rs1()] < regs[instr.rs2()]) ? 1 : 0;
+            break;
+        case OP_XOR:
+            regs[instr.rd()] = regs[instr.rs1()] ^ regs[instr.rs2()];
+            break;
+        case OP_OR:
+            regs[instr.rd()] = regs[instr.rs1()] | regs[instr.rs2()];
+            break;
+        case OP_AND:
+            regs[instr.rd()] = regs[instr.rs1()] & regs[instr.rs2()];
+            break;
+        case OP_SRL_SRA:
+            switch (instr.funct7()) {
+            case FUNCT7_SRL:
+                regs[instr.rd()] = regs[instr.rs1()] >> regs[instr.rs2()];
+                break;
+            case FUNCT7_SRA:
+                regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) 
+                    >> regs[instr.rs2()];
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
+            break;
         default:
             throw Exception(EXCEPTION_ILLEGAL_INSTR);
         }
