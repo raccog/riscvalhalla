@@ -273,9 +273,9 @@ void Hart::step() {
         switch (instr.func12()) {
         case SYSTEM_ECALL:
             // Temporary testing harness
-            //if (regs[17] == 93) {
+            if (regs[17] == 93) {
                 halted = true;
-            //}
+            }
             break;
         case SYSTEM_EBREAK:
             break;
