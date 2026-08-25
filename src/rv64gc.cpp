@@ -346,10 +346,10 @@ void Hart::step() {
                 throw Exception(EXCEPTION_ILLEGAL_INSTR);
             }
             switch (instr.immI() >> 6) {
-            case FUNCT7_SRLI:
+            case FUNCT6_SRLI:
                 regs[instr.rd()] = regs[instr.rs1()] >> shift;
                 break;
-            case FUNCT7_SRAI:
+            case FUNCT6_SRAI:
                 regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) >> shift;
                 break;
             default:
@@ -365,6 +365,56 @@ void Hart::step() {
         switch (instr.funct3()) {
         case OP_IMM_32_ADDIW:
             regs[instr.rd()] = sext<32>(regs[instr.rs1()] + instr.immI());
+            break;
+        case OP_IMM_32_SLLIW:
+            regs[instr.rd()] = sext<32>(regs[instr.rs1()] << instr.immI());
+            break;
+        case OP_IMM_32_SRLIW_SRAIW:
+            switch (instr.funct7()) {
+            case FUNCT7_SRLI:
+                regs[instr.rd()] = sext<32>(regs[instr.rs1()] << instr.immI());
+                break;
+            case FUNCT7_SRAI:
+                regs[instr.rd()] = sext<32>(static_cast<i64>(regs[instr.rs1()])
+                       << instr.immI());
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
+            break;
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
+        break;
+    case OPCODE_OP_32:
+        switch (instr.funct3()) {
+        case OP_ADD_SUB:
+            switch (instr.funct7()) {
+            case FUNCT7_ADD:
+                regs[instr.rd()] = sext<32>(regs[instr.rs1()] + regs[instr.rs2()]);
+                break;
+            case FUNCT7_SUB:
+                regs[instr.rd()] = sext<32>(regs[instr.rs1()] - regs[instr.rs2()]);
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
+            break;
+        case OP_SLL:
+            regs[instr.rd()] = sext<32>(regs[instr.rs1()] << regs[instr.rs2()]);
+            break;
+        case OP_SRL_SRA:
+            switch (instr.funct7()) {
+            case FUNCT7_SRL:
+                regs[instr.rd()] = sext<32>(regs[instr.rs1()] << regs[instr.rs2()]);
+                break;
+            case FUNCT7_SRA:
+                regs[instr.rd()] = sext<32>(static_cast<i64>(regs[instr.rs1()])
+                       << regs[instr.rs2()]);
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
             break;
         default:
             throw Exception(EXCEPTION_ILLEGAL_INSTR);

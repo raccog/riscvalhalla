@@ -34,6 +34,7 @@ constexpr u32 OPCODE_STORE_FP = 0b0100111;
 constexpr u32 OPCODE_AMO = 0b0101111;
 constexpr u32 OPCODE_OP = 0b0110011;
 constexpr u32 OPCODE_LUI = 0b0110111;
+constexpr u32 OPCODE_OP_32 = 0b0111011;
 constexpr u32 OPCODE_MADD = 0b1000011;
 constexpr u32 OPCODE_MSUB = 0b1000111;
 constexpr u32 OPCODE_OP_FP = 0b1010011;
@@ -88,6 +89,9 @@ constexpr u32 OP_32_SRLW_SRAW = 0b101;
 
 constexpr u32 FUNCT7_SRLI = 0b0000000;
 constexpr u32 FUNCT7_SRAI = 0b0100000;
+
+constexpr u32 FUNCT6_SRLI = 0b000000;
+constexpr u32 FUNCT6_SRAI = 0b010000;
 
 constexpr u32 BRANCH_BEQ = 0b000;
 constexpr u32 BRANCH_BNE = 0b001;
