@@ -77,6 +77,9 @@ constexpr u32 BRANCH_BGE = 0b101;
 constexpr u32 BRANCH_BLTU = 0b110;
 constexpr u32 BRANCH_BGEU = 0b111;
 
+constexpr u32 SYSTEM_ECALL = 0;
+constexpr u32 SYSTEM_EBREAK = 1;
+
 template <unsigned bits>
 i64 sext(u64 value) {
     assert(bits < 64);
@@ -133,6 +136,7 @@ struct Instr {
 
     u32 funct3() const;
     u32 funct7() const;
+    u32 func12() const;
 
     i64 immI() const;
     i64 immS() const;
@@ -145,6 +149,7 @@ struct Hart {
     Memory memory;
     u64 pc;
     u64 regs[NUM_REGS];
+    bool halted = false;
 
     Hart();
 

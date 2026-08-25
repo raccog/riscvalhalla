@@ -127,6 +127,11 @@ static Result runElf(const fs::path &path, u64 maxSteps, Hart &hart) {
     result.started = true;
 
     for (result.steps = 0; result.steps < maxSteps; ++result.steps) {
+        if (hart.halted) {
+            result.status = Status::Fail;
+            result.detail = "halted with " + std::to_string(hart.regs[3]) + " code";
+            return result;
+        }
         u64 tohost = 0;
         try {
             tohost = hart.memory.read(tohostAddr, 8);

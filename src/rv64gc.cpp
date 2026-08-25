@@ -135,6 +135,10 @@ u32 Instr::funct7() const {
     return (raw >> 25) & 0x7f;
 }
 
+u32 Instr::func12() const {
+    return (raw >> 20) & 0xfff;
+}
+
 i64 Instr::immI() const {
     u32 imm = (raw >> 20) & 0xfff;
     return sext<12>(imm);
@@ -175,6 +179,7 @@ void Hart::loadElf(const Elf &elf) {
 void Hart::reset(u64 entry) {
     pc = entry;
     std::fill(std::begin(regs), std::end(regs), 0);
+    halted = false;
 }
 
 Instr Hart::decode() {
@@ -260,16 +265,29 @@ void Hart::step() {
         }
         break;
     case OPCODE_SYSTEM:
-        // System instructions do nothing right now.
-        // But they do not throw illegal instruction exceptions
+        // Failed system calls do not throw exceptions for now.
+        // This is to allow tests to work without implementing
+        // CSR registers yet.
+        switch (instr.func12()) {
+        case SYSTEM_ECALL:
+            // Temporary testing harness
+            //if (regs[17] == 93) {
+                halted = true;
+            //}
+            break;
+        case SYSTEM_EBREAK:
+            break;
+        }
         break;
     case OPCODE_MISC_MEM:
-        // Fence instructions also do nothing yet.
+        // Fence instructions do nothing yet.
+        // But they do not throw illegal instruction exceptions
         break;
     case OPCODE_LOAD:
     default:
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
-    pc = next_pc;
+    if (!halted)
+        pc = next_pc;
 }
 
