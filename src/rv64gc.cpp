@@ -189,14 +189,16 @@ Csrs::Csrs() {
     implement({0, ~0ull, ~0ull, MTVAL});
     implement({0, ~0ull, ~0ull, MIP});
     implement({0, 0x1888, 0x1888, MSTATUS});
-    implement({0, 0x122, 0x122, SSTATUS});
-    table[SSTATUS].alias = MSTATUS;
+    implement({0, 0x122, 0x122, SSTATUS, MSTATUS});
     implement({0, ~0ull, ~0ull, MEPC});
     implement({0, ~0ull, 0x800000000000001f, MCAUSE});
     implement({0, 0x888, 0x888, MIE});
     implement({0, 0, ~0ull, TSELECT});
     implement({0, 0, ~0ull, TDATA1});
     implement({0, ~0ull, ~0ull, TDATA2});
+    implement({0, ~0ull, ~0ull, MCYCLE});
+    implement({0, ~0ull, ~0ull, MINSTRET});
+    implement({0, ~0ull, ~0ull, MCOUNTINHIBIT});
     reset();
 }
 

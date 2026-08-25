@@ -119,29 +119,108 @@ constexpr u64 PRIV_U = 0b00;
 constexpr u64 PRIV_S = 0b01;
 constexpr u64 PRIV_M = 0b11;
 
+// Unprivileged Entropy Source Extension CSR
+constexpr unsigned SEED = 0x015;
+// Unprivileged Counter/Timers
+constexpr unsigned CYCLE = 0xc00;
+constexpr unsigned TIME = 0xc01;
+constexpr unsigned INSTRET = 0xc02;
+// Supervisor Trap Setup
+constexpr unsigned SSTATUS = 0x100;
+constexpr unsigned SIE = 0x104;
+constexpr unsigned STVEC = 0x105;
+constexpr unsigned SCOUNTEREN = 0x106;
+// Supervisor Configuration
+constexpr unsigned SENVCFG = 0x10a;
+// Supervisor Counter Setup
+constexpr unsigned SCOUNTINHIBIT = 0x120;
+// Supervisor Trap Handling
+constexpr unsigned SSCRATCH = 0x140;
+constexpr unsigned SEPC = 0x141;
+constexpr unsigned SCAUSE = 0x142;
+constexpr unsigned STVAL = 0x143;
+constexpr unsigned SIP = 0x144;
+constexpr unsigned SCOUNTOVF = 0xda0;
+// Supervisor Indirect
+constexpr unsigned SISELECT = 0x150;
+constexpr unsigned SIREG = 0x151;
+constexpr unsigned SIREG2 = 0x152;
+constexpr unsigned SIREG3 = 0x153;
+constexpr unsigned SIREG4 = 0x154;
+constexpr unsigned SIREG5 = 0x155;
+constexpr unsigned SIREG6 = 0x156;
+// Supervisor Protection and Translation
+constexpr unsigned SATP = 0x180;
+// Supervisor Timer Compare
+constexpr unsigned STIMECMP = 0x14d;
+// Debug/Trace Registers
+constexpr unsigned SCONTEXT = 0x5a8;
+// Supervisor Resource Management Configuration
+constexpr unsigned SRMCFG = 0x181;
+// Supervisor State Enable Registers
+constexpr unsigned SSTATEEN0 = 0x10c;
+constexpr unsigned SSTATEEN1 = 0x10d;
+constexpr unsigned SSTATEEN2 = 0x10e;
+constexpr unsigned SSTATEEN3 = 0x10f;
+// Supervisor Control Transfer Records Configuration
+constexpr unsigned SCTRCTL = 0x14e;
+constexpr unsigned SCTRSTATUS = 0x14f;
+constexpr unsigned SCTRDEPTH = 0x15f;
+
+// Machine Information Registers
 constexpr unsigned MVENDORID = 0xf11;
 constexpr unsigned MARCHID = 0xf12;
 constexpr unsigned MIMPID = 0xf13;
 constexpr unsigned MHARTID = 0xf14;
+constexpr unsigned MCONFIGPTR = 0xf15;
+// Machine Trap Setup
 constexpr unsigned MSTATUS = 0x300;
 constexpr unsigned MISA = 0x301;
 constexpr unsigned MEDELEG = 0x302;
 constexpr unsigned MIDELEG = 0x303;
 constexpr unsigned MIE = 0x304;
 constexpr unsigned MTVEC = 0x305;
+constexpr unsigned MCOUNTEREN = 0x306;
+// Machine Trap Handling
 constexpr unsigned MSCRATCH = 0x340;
 constexpr unsigned MEPC = 0x341;
 constexpr unsigned MCAUSE = 0x342;
 constexpr unsigned MTVAL = 0x343;
 constexpr unsigned MIP = 0x344;
-constexpr unsigned SATP = 0x180;
+constexpr unsigned MTINST = 0x34a;
+constexpr unsigned MTVAL2 = 0x34b;
+// Machine Indirect
+constexpr unsigned MISELECT = 0x350;
+constexpr unsigned MIREG = 0x351;
+constexpr unsigned MIREG1 = 0x352;
+constexpr unsigned MIREG2 = 0x353;
+constexpr unsigned MIREG3 = 0x354;
+constexpr unsigned MIREG4 = 0x355;
+constexpr unsigned MIREG5 = 0x356;
+constexpr unsigned MIREG6 = 0x357;
+// Machine Configuration
+constexpr unsigned MENVCFG = 0x30a;
+constexpr unsigned MSECCFG = 0x747;
+// Machine Memory Protection
 constexpr unsigned PMPCFG0 = 0x3a0;
 constexpr unsigned PMPADDR0 = 0x3b0;
+// Machine State Enable Registers
+constexpr unsigned MSTATEEN0 = 0x30c;
+constexpr unsigned MSTATEEN1 = 0x30d;
+constexpr unsigned MSTATEEN2 = 0x30e;
+constexpr unsigned MSTATEEN3 = 0x30f;
+// Machine Non-Maskable Interrupt Handling
+constexpr unsigned MNSCRATCH = 0x740;
+constexpr unsigned MNEPC = 0x741;
+constexpr unsigned MNCAUSE = 0x742;
 constexpr unsigned MNSTATUS = 0x744;
 constexpr unsigned TSELECT = 0x7a0;
 constexpr unsigned TDATA1 = 0x7a1;
 constexpr unsigned TDATA2 = 0x7a2;
-constexpr unsigned SSTATUS = 0x100;
+constexpr unsigned MCYCLE = 0xb00;
+constexpr unsigned MINSTRET = 0xb02;
+constexpr unsigned MCOUNTINHIBIT = 0x320;
+
 
 template <unsigned bits>
 i64 sext(u64 value) {
