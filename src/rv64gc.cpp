@@ -698,6 +698,7 @@ void Hart::trapEntry(const Exception &e) {
 
 void Hart::trapExit() {
     // Restore interrupts
+    csrs.regs[MSTATUS] &= ~(1ull << 3);
     csrs.regs[MSTATUS] |= ((csrs.regs[MSTATUS] >> 7) & 1) << 3;
     csrs.regs[MSTATUS] |= (1ull << 7);
     // Restore privilege
