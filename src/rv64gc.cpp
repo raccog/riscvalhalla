@@ -177,28 +177,125 @@ void Registers::clear() {
 }
 
 Csrs::Csrs() {
-    implement({(2ull << 62), 0, ~0ull, MISA});
-    implement({0, 0, ~0ull, MHARTID});
+    // Unprivileged Entropy Source Extension
+    // There is no entropy source behind seed, so it reports OPST=DEAD rather
+    // than OPST=BIST, which would leave software polling it forever.
+    implement({(3ull << 30), 0, 0xffffffff, SEED});
+
+    // Unprivileged Counter/Timers
+    // cycle and instret are read-only views of the machine counters. time has
+    // no CSR behind it - mtime is a memory-mapped device - so it reads as zero.
+    implement({0, 0, ~0ull, CYCLE, MCYCLE});
+    implement({0, 0, ~0ull, TIME});
+    implement({0, 0, ~0ull, INSTRET, MINSTRET});
+
+    // Supervisor Trap Setup
+    // sstatus is the S-mode view of mstatus (SIE, SPIE, SPP) and sie/sip are
+    // the S-mode views of mie/mip (SSI, STI, SEI).
+    implement({0, 0x122, 0x122, SSTATUS, MSTATUS});
+    implement({0, 0x222, 0x222, SIE, MIE});
+    implement({0, ~0ull, ~0ull, STVEC});
+    implement({0, 0xffffffff, 0xffffffff, SCOUNTEREN});
+    // Supervisor Configuration
+    implement({0, 0xf1, 0xf1, SENVCFG});                    // FIOM, CBIE, CBCFE, CBZE
+    // Supervisor Counter Setup
+    implement({0, 0xffffffff, 0xffffffff, SCOUNTINHIBIT});
+    // Supervisor Trap Handling
+    implement({0, ~0ull, ~0ull, SSCRATCH});
+    implement({0, ~0ull, ~0ull, SEPC});
+    implement({0, ~0ull, 0x800000000000001f, SCAUSE});
+    implement({0, ~0ull, ~0ull, STVAL});
+    implement({0, 0x222, 0x222, SIP, MIP});
+    implement({0, 0, ~0ull, SCOUNTOVF});
+    // Supervisor Indirect
+    implement({0, ~0ull, ~0ull, SISELECT});
+    implement({0, ~0ull, ~0ull, SIREG});
+    implement({0, ~0ull, ~0ull, SIREG2});
+    implement({0, ~0ull, ~0ull, SIREG3});
+    implement({0, ~0ull, ~0ull, SIREG4});
+    implement({0, ~0ull, ~0ull, SIREG5});
+    implement({0, ~0ull, ~0ull, SIREG6});
+    // Supervisor Protection and Translation
+    implement({0, ~0ull, ~0ull, SATP});
+    // Supervisor Timer Compare
+    implement({0, ~0ull, ~0ull, STIMECMP});
+    // Debug/Trace Registers
+    implement({0, ~0ull, ~0ull, SCONTEXT});
+    // Supervisor Resource Management Configuration
+    implement({0, 0x0fff0fff, 0x0fff0fff, SRMCFG});          // RCID, MCID
+    // Supervisor State Enable Registers
+    implement({0, ~0ull, ~0ull, SSTATEEN0});
+    implement({0, ~0ull, ~0ull, SSTATEEN1});
+    implement({0, ~0ull, ~0ull, SSTATEEN2});
+    implement({0, ~0ull, ~0ull, SSTATEEN3});
+    // Supervisor Control Transfer Records Configuration
+    implement({0, ~0ull, ~0ull, SCTRCTL});
+    implement({0, ~0ull, ~0ull, SCTRSTATUS});
+    implement({0, ~0ull, ~0ull, SCTRDEPTH});
+
+    // Machine Information Registers
+    // Nothing here has an ID to report, and there is no configuration
+    // structure, so they are all read-only zero.
     implement({0, 0, ~0ull, MVENDORID});
-    implement({0, 0, ~0ull, MIMPID});
     implement({0, 0, ~0ull, MARCHID});
+    implement({0, 0, ~0ull, MIMPID});
+    implement({0, 0, ~0ull, MHARTID});
+    implement({0, 0, ~0ull, MCONFIGPTR});
+    // Machine Trap Setup
+    // mstatus is a superset of sstatus: MIE/MPIE/MPP plus the SIE/SPIE/SPP
+    // bits that the sstatus alias writes into the same storage.
+    implement({0, 0x19aa, 0x19aa, MSTATUS});
+    implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, ~0ull, ~0ull, MEDELEG});
     implement({0, ~0ull, ~0ull, MIDELEG});
-    implement({0, ~0ull, ~0ull, MSCRATCH});
+    // Likewise mie covers both the M and S interrupt-enable bits.
+    implement({0, 0xaaa, 0xaaa, MIE});
     implement({0, ~0ull, ~0ull, MTVEC});
-    implement({0, ~0ull, ~0ull, MTVAL});
-    implement({0, ~0ull, ~0ull, MIP});
-    implement({0, 0x1888, 0x1888, MSTATUS});
-    implement({0, 0x122, 0x122, SSTATUS, MSTATUS});
+    implement({0, 0xffffffff, 0xffffffff, MCOUNTEREN});
+    // Machine Trap Handling
+    implement({0, ~0ull, ~0ull, MSCRATCH});
     implement({0, ~0ull, ~0ull, MEPC});
     implement({0, ~0ull, 0x800000000000001f, MCAUSE});
-    implement({0, 0x888, 0x888, MIE});
+    implement({0, ~0ull, ~0ull, MTVAL});
+    implement({0, ~0ull, ~0ull, MIP});
+    implement({0, ~0ull, ~0ull, MTINST});
+    implement({0, ~0ull, ~0ull, MTVAL2});
+    // Machine Indirect
+    implement({0, ~0ull, ~0ull, MISELECT});
+    implement({0, ~0ull, ~0ull, MIREG});
+    implement({0, ~0ull, ~0ull, MIREG2});
+    implement({0, ~0ull, ~0ull, MIREG3});
+    implement({0, ~0ull, ~0ull, MIREG4});
+    implement({0, ~0ull, ~0ull, MIREG5});
+    implement({0, ~0ull, ~0ull, MIREG6});
+    // Machine Configuration
+    implement({0, 0xf1, 0xf1, MENVCFG});                    // FIOM, CBIE, CBCFE, CBZE
+    implement({0, 0x707, 0x707, MSECCFG});                  // MML, MMWP, RLB, USEED, SSEED, MLPE
+    // Machine Memory Protection
+    // One PMP entry is configured, so only the low byte of pmpcfg0 is live;
+    // bits 6:5 of it are reserved, and pmpaddr0 holds address bits 55:2.
+    implement({0, 0x9f, 0x9f, PMPCFG0});
+    implement({0, 0x003fffffffffffff, 0x003fffffffffffff, PMPADDR0});
+    // Machine State Enable Registers
+    implement({0, ~0ull, ~0ull, MSTATEEN0});
+    implement({0, ~0ull, ~0ull, MSTATEEN1});
+    implement({0, ~0ull, ~0ull, MSTATEEN2});
+    implement({0, ~0ull, ~0ull, MSTATEEN3});
+    // Machine Non-Maskable Interrupt Handling
+    implement({0, ~0ull, ~0ull, MNSCRATCH});
+    implement({0, ~0ull, ~0ull, MNEPC});
+    implement({0, ~0ull, 0x800000000000001f, MNCAUSE});
+    implement({0, 0x1888, 0x1888, MNSTATUS});               // NMIE, MNPV, MNPP
+    // Debug/Trace Registers
     implement({0, 0, ~0ull, TSELECT});
     implement({0, 0, ~0ull, TDATA1});
     implement({0, ~0ull, ~0ull, TDATA2});
+    // Machine Counter/Timers
     implement({0, ~0ull, ~0ull, MCYCLE});
     implement({0, ~0ull, ~0ull, MINSTRET});
+    // Machine Counter Setup
     implement({0, ~0ull, ~0ull, MCOUNTINHIBIT});
+
     reset();
 }
 

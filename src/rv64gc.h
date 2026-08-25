@@ -192,12 +192,11 @@ constexpr unsigned MTVAL2 = 0x34b;
 // Machine Indirect
 constexpr unsigned MISELECT = 0x350;
 constexpr unsigned MIREG = 0x351;
-constexpr unsigned MIREG1 = 0x352;
-constexpr unsigned MIREG2 = 0x353;
-constexpr unsigned MIREG3 = 0x354;
-constexpr unsigned MIREG4 = 0x355;
-constexpr unsigned MIREG5 = 0x356;
-constexpr unsigned MIREG6 = 0x357;
+constexpr unsigned MIREG2 = 0x352;
+constexpr unsigned MIREG3 = 0x353;
+constexpr unsigned MIREG4 = 0x354;
+constexpr unsigned MIREG5 = 0x355;
+constexpr unsigned MIREG6 = 0x356;
 // Machine Configuration
 constexpr unsigned MENVCFG = 0x30a;
 constexpr unsigned MSECCFG = 0x747;
@@ -214,11 +213,14 @@ constexpr unsigned MNSCRATCH = 0x740;
 constexpr unsigned MNEPC = 0x741;
 constexpr unsigned MNCAUSE = 0x742;
 constexpr unsigned MNSTATUS = 0x744;
+// Debug/Trace Registers
 constexpr unsigned TSELECT = 0x7a0;
 constexpr unsigned TDATA1 = 0x7a1;
 constexpr unsigned TDATA2 = 0x7a2;
+// Machine Counter/Timers
 constexpr unsigned MCYCLE = 0xb00;
 constexpr unsigned MINSTRET = 0xb02;
+// Machine Counter Setup
 constexpr unsigned MCOUNTINHIBIT = 0x320;
 
 
