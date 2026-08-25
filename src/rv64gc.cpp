@@ -182,7 +182,7 @@ Csrs::Csrs() {
     implement({0, ~0ull, ~0ull, MTVEC});
     implement({0, 0x1888, 0x1888, MSTATUS});
     implement({0, ~0ull, ~0ull, MEPC});
-    implement({0, ~0ull, 0x800000000000000f, MCAUSE});
+    implement({0, ~0ull, 0x800000000000001f, MCAUSE});
     implement({0, 0x888, 0x888, MIE});
     reset();
 }
@@ -553,21 +553,25 @@ u64 Hart::execute() {
     case OPCODE_SYSTEM:
         switch (instr.funct3()) {
         case 0b000:
-            // Failed system calls do not throw exceptions for now.
-            // This is to allow tests to work without implementing
-            // CSR registers yet.
             switch (instr.func12()) {
-            case SYSTEM_ECALL:
-                // Temporary testing harness
-                if (regs[17] == 93) {
-                    halted = true;
+            case SYSTEM_ECALL: {
+                if (csrs.privilege == PRIV_M) {
+                    throw Exception(EXCEPTION_M_ECALL, 0);
+                } else if (csrs.privilege == PRIV_S) {
+                    throw Exception(EXCEPTION_S_ECALL, 0);
+                } else if (csrs.privilege == PRIV_U) {
+                    throw Exception(EXCEPTION_U_ECALL, 0);
                 }
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
                 break;
+            }
             case SYSTEM_EBREAK:
                 break;
             case SYSTEM_MRET:
                 trapExit();
                 break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         case SYSTEM_CSRRW: {
@@ -660,11 +664,15 @@ void Hart::trapEntry(const Exception &e) {
     // Save PC to MEPC
     csrs.regs[MEPC] = pc;
     // Save cause and interrupt bit to MCAUSE
-    csrs.regs[MCAUSE] = (e.code & 0x3f) | (e.interrupt) ? (1ull << 63) : 0;
+    csrs.regs[MCAUSE] = (e.code & 0x3f) | (e.interrupt ? (1ull << 63) : 0);
     // Save val to MTVAL
     csrs.regs[MTVAL] = e.val;
 
     u64 mstatus = csrs.regs[MSTATUS];
+    // Save privilege
+    mstatus = (mstatus & ~(3ull << 11)) | (csrs.privilege << 11);
+    // Save interrupt enable bit
+    mstatus = (mstatus & ~(1ull << 7)) | (((mstatus >> 3) & 1) << 7);
     // Disable interrupts
     mstatus &= ~(1ull << 3);
     // Set privilege to M mode
