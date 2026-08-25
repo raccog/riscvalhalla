@@ -318,12 +318,43 @@ void Hart::step() {
         case OP_IMM_ORI:
             regs[instr.rd()] = regs[instr.rs1()] | instr.immI();
             break;
+        case OP_IMM_XORI:
+            regs[instr.rd()] = regs[instr.rs1()] ^ instr.immI();
+            break;
+        case OP_IMM_ANDI:
+            regs[instr.rd()] = regs[instr.rs1()] & instr.immI();
+            break;
+        case OP_IMM_SLTI:
+            regs[instr.rd()] = (static_cast<i64>(regs[instr.rs1()])
+                    < instr.immI()) ? 1 : 0;
+            break;
+        case OP_IMM_SLTIU:
+            regs[instr.rd()] = (regs[instr.rs1()]
+                    < static_cast<u64>(instr.immI())) ? 1 : 0;
+            break;
         case OP_IMM_SLLI: {
             u64 shift = instr.immI() & 0x3f;
             if (shift >= 64) {
                 throw Exception(EXCEPTION_ILLEGAL_INSTR);
             }
             regs[instr.rd()] = regs[instr.rs1()] << shift;
+            break;
+        }
+        case OP_IMM_SRLI_SRAI: {
+            u64 shift = instr.immI() & 0x3f;
+            if (shift >= 64) {
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
+            switch (instr.immI() >> 6) {
+            case FUNCT7_SRLI:
+                regs[instr.rd()] = regs[instr.rs1()] >> shift;
+                break;
+            case FUNCT7_SRAI:
+                regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) >> shift;
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            }
             break;
         }
         default:
