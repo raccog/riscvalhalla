@@ -214,6 +214,31 @@ void Hart::step() {
     case OPCODE_AUIPC:
         regs[instr.rd()] = pc + instr.immU();
         break;
+    case OPCODE_LOAD:
+        switch (instr.funct3()) {
+        case LOAD_BYTE:
+            regs[instr.rd()] = sext<8>(memory.read(regs[instr.rs1()] + instr.immI(), 1));
+            break;
+        case LOAD_HALF:
+            regs[instr.rd()] = sext<16>(memory.read(regs[instr.rs1()] + instr.immI(), 2));
+            break;
+        case LOAD_WORD:
+            regs[instr.rd()] = sext<32>(memory.read(regs[instr.rs1()] + instr.immI(), 4));
+            break;
+        case LOAD_DOUBLE:
+            regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 8);
+            break;
+        case LOAD_BYTE_UNSIGNED:
+            regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 1);
+            break;
+        case LOAD_HALF_UNSIGNED:
+            regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 2);
+            break;
+        case LOAD_WORD_UNSIGNED:
+            regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 4);
+            break;
+        }
+        break;
     case OPCODE_OP:
         switch (instr.funct3()) {
         case OP_ADD_SUB:
@@ -341,7 +366,6 @@ void Hart::step() {
         // Fence instructions do nothing yet.
         // But they do not throw illegal instruction exceptions
         break;
-    case OPCODE_LOAD:
     default:
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
