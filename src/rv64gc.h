@@ -103,6 +103,19 @@ constexpr u32 BRANCH_BGEU = 0b111;
 constexpr u32 SYSTEM_ECALL = 0;
 constexpr u32 SYSTEM_EBREAK = 1;
 
+constexpr unsigned CSR_REGS = 4096;
+
+constexpr u32 SYSTEM_CSRRW = 0b001;
+constexpr u32 SYSTEM_CSRRS = 0b010;
+constexpr u32 SYSTEM_CSRRC = 0b011;
+constexpr u32 SYSTEM_CSRRWI = 0b101;
+constexpr u32 SYSTEM_CSRRSI = 0b110;
+constexpr u32 SYSTEM_CSRRCI = 0b111;
+
+constexpr u64 PRIV_U = 0b00;
+constexpr u64 PRIV_S = 0b01;
+constexpr u64 PRIV_M = 0b11;
+
 template <unsigned bits>
 i64 sext(u64 value) {
     assert(bits < 64);
@@ -195,10 +208,26 @@ public:
     }
 };
 
+struct Csrs {
+private:
+    u64 regs[CSR_REGS];
+
+public:
+    u64 privilege = PRIV_M;
+
+    void reset();
+
+    u64 read(unsigned addr);
+    void write(unsigned addr, u64 value);
+    void bitset(unsigned addr, u64 mask);
+    void bitclear(unsigned addr, u64 mask);
+};
+
 struct Hart {
     Memory memory;
     u64 pc;
     Registers regs;
+    Csrs csrs;
     bool halted = false;
 
     Hart();

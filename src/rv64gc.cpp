@@ -176,6 +176,47 @@ void Registers::clear() {
     std::fill(std::begin(regs), std::end(regs), 0);
 }
 
+void Csrs::reset() {
+    std::fill(std::begin(regs), std::end(regs), 0);
+    privilege = PRIV_M;
+}
+
+u64 Csrs::read(unsigned addr) {
+    // Throw exception for reading without appropriate privilege
+    if (privilege < ((addr >> 8) & 0b11)) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    // Throw exception for accessing debug registers
+    if ((addr & 0x7b0) == 0x7b0) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    return regs[addr];
+}
+
+void Csrs::write(unsigned addr, u64 value) {
+    // Throw exception for writing to read-only CSRs
+    if ((addr >> 10) == 0b11) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    // Throw exception for writing without appropriate privilege
+    if (privilege < ((addr >> 8) & 0b11)) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    // Throw exception for accessing debug registers
+    if ((addr & 0x7b0) == 0x7b0) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    regs[addr] = value;
+}
+
+void Csrs::bitset(unsigned addr, u64 mask) {
+    write(addr, read(addr) & mask);
+}
+
+void Csrs::bitclear(unsigned addr, u64 mask) {
+    write(addr, read(addr) & ~mask);
+}
+
 Hart::Hart() : memory(), pc{0}, regs{} {}
 
 void Hart::loadElf(const Elf &elf) {
@@ -186,6 +227,7 @@ void Hart::reset(u64 entry) {
     pc = entry;
     halted = false;
     regs.clear();
+    csrs.reset();
 }
 
 Instr Hart::decode() {
@@ -483,17 +525,63 @@ void Hart::step() {
         // Failed system calls do not throw exceptions for now.
         // This is to allow tests to work without implementing
         // CSR registers yet.
-        switch (instr.func12()) {
+        switch (instr.funct3()) {
         case SYSTEM_ECALL:
-            // Temporary testing harness
-            if (regs[17] == 93) {
-                halted = true;
+            switch (instr.func12()) {
+            case SYSTEM_ECALL:
+                // Temporary testing harness
+                if (regs[17] == 93) {
+                    halted = true;
+                }
+                break;
+            case SYSTEM_EBREAK:
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR);
             }
             break;
-        case SYSTEM_EBREAK:
+        case SYSTEM_CSRRW: {
+            u64 old = csrs.read(instr.func12());
+            csrs.write(instr.func12(), regs[instr.rs1()]);
+            regs[instr.rd()] = old;
             break;
-        //default:
-        //    throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
+        case SYSTEM_CSRRS: {
+            u64 old = csrs.read(instr.func12());
+            if (instr.rs1() != 0)
+                csrs.bitset(instr.func12(), regs[instr.rs1()]);
+            regs[instr.rd()] = old;
+            break;
+        }
+        case SYSTEM_CSRRC: {
+            u64 old = csrs.read(instr.func12());
+            if (instr.rs1() != 0)
+                csrs.bitset(instr.func12(), regs[instr.rs1()]);
+            regs[instr.rd()] = old;
+            break;
+        }
+        case SYSTEM_CSRRWI: {
+            u64 old = csrs.read(instr.func12());
+            csrs.write(instr.func12(), instr.rs1());
+            regs[instr.rd()] = old;
+            break;
+        }
+        case SYSTEM_CSRRSI: {
+            u64 old = csrs.read(instr.func12());
+            if (instr.rs1() != 0)
+                csrs.bitset(instr.func12(), instr.rs1());
+            regs[instr.rd()] = old;
+            break;
+        }
+        case SYSTEM_CSRRCI: {
+            u64 old = csrs.read(instr.func12());
+            if (instr.rs1() != 0)
+                csrs.bitset(instr.func12(), instr.rs1());
+            regs[instr.rd()] = old;
+            break;
+        }
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
         }
         break;
     case OPCODE_MISC_MEM:
