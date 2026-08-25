@@ -180,6 +180,7 @@ Csrs::Csrs() {
     implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, 0, ~0ull, MHARTID});
     implement({0, ~0ull, ~0ull, MTVEC});
+    implement({0, ~0ull, ~0ull, MTVAL});
     implement({0, 0x1888, 0x1888, MSTATUS});
     implement({0, ~0ull, ~0ull, MEPC});
     implement({0, ~0ull, 0x800000000000001f, MCAUSE});
@@ -675,19 +676,20 @@ void Hart::trapEntry(const Exception &e) {
     mstatus = (mstatus & ~(1ull << 7)) | (((mstatus >> 3) & 1) << 7);
     // Disable interrupts
     mstatus &= ~(1ull << 3);
-    // Set privilege to M mode
-    mstatus |= (PRIV_M << 11);
     csrs.regs[MSTATUS] = mstatus;
 
+    csrs.privilege = PRIV_M;
     // Jump to trap handler
     pc = csrs.regs[MTVEC];
 }
 
 void Hart::trapExit() {
-    // Enable interrupts
-    csrs.regs[MSTATUS] |= 1ull << 3;
-    // Set privilege to user mode
-    // TODO: Set to supervisor instead
+    // Restore interrupts
+    csrs.regs[MSTATUS] |= ((csrs.regs[MSTATUS] >> 7) & 1) << 3;
+    csrs.regs[MSTATUS] |= (1ull << 7);
+    // Restore privilege
+    csrs.privilege = (csrs.regs[MSTATUS] >> 11) & PRIV_M;
+    // Clear MPP
     csrs.regs[MSTATUS] &= ~(PRIV_M << 11);
 
     // Jump to return address
