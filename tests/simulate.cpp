@@ -128,8 +128,19 @@ static Result runElf(const fs::path &path, u64 maxSteps, Hart &hart) {
 
     for (result.steps = 0; result.steps < maxSteps; ++result.steps) {
         if (hart.halted) {
-            result.status = Status::Fail;
-            result.detail = "halted with " + std::to_string(hart.regs[3]) + " code";
+            // No CSRs or traps yet, so an ecall never reaches the test's
+            // trap_vector and tohost stays zero. Read the exit code straight
+            // out of a0, which RVTEST_PASS/RVTEST_FAIL set to 0 on success and
+            // to (testnum << 1) | 1 on failure.
+            const u64 code = hart.regs[10];
+            if (code == 0) {
+                result.status = Status::Pass;
+            } else if (code & 1) {
+                result.status = Status::Fail;
+                result.detail = "test " + std::to_string(code >> 1) + " failed";
+            } else {
+                result.detail = "halted with unexpected a0=" + hex(code);
+            }
             return result;
         }
         u64 tohost = 0;

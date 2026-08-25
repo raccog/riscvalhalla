@@ -146,25 +146,27 @@ i64 Instr::immI() const {
 
 i64 Instr::immS() const {
     u32 imm = ((raw >> 25) & 0x7f) << 5
-        | ((raw << 7) & 0x1f);
+        | ((raw >> 7) & 0x1f);
     return sext<12>(imm);
 }
 
 i64 Instr::immB() const {
     u32 imm = ((raw >> 31) & 1) << 12
-        | ((raw << 7) & 1) << 11
+        | ((raw >> 7) & 1) << 11
         | ((raw >> 25) & 0x3f) << 5
         | ((raw >> 8) & 0xf) << 1;
     return sext<13>(imm);
 }
 
 i64 Instr::immU() const {
-    return static_cast<i64>(raw & 0xfffff000);
+    // Bit 31 is the sign bit: the 32-bit result has to be widened as signed so
+    // AUIPC and LUI see a negative offset rather than a 4GiB-ish positive one.
+    return sext<32>(raw & 0xfffff000);
 }
 
 i64 Instr::immJ() const {
     u32 imm = ((raw >> 31) & 1) << 20
-        | ((raw << 12) & 0xff) << 12
+        | ((raw >> 12) & 0xff) << 12
         | ((raw >> 20) & 1) << 11
         | ((raw >> 21) & 0x3ff) << 1;
     return sext<21>(imm);
@@ -199,7 +201,7 @@ void Hart::step() {
         next_pc = pc + instr.immJ();
         break;
     case OPCODE_LUI:
-        regs[instr.rd()] = sext<32>(instr.immU());
+        regs[instr.rd()] = instr.immU();
         break;
     case OPCODE_AUIPC:
         regs[instr.rd()] = pc + instr.immU();
@@ -287,6 +289,7 @@ void Hart::step() {
     default:
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
+    regs[0] = 0;
     if (!halted)
         pc = next_pc;
 }
