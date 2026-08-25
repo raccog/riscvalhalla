@@ -570,6 +570,7 @@ u64 Hart::execute() {
                 break;
             case SYSTEM_MRET:
                 trapExit();
+                next_pc = pc;
                 break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);

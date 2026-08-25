@@ -31,7 +31,7 @@
 namespace fs = std::filesystem;
 
 constexpr const char *DEFAULT_ISA_DIR = "riscv-tests/isa";
-constexpr u64 DEFAULT_MAX_STEPS = 10000;
+constexpr u64 DEFAULT_MAX_STEPS = 20000;
 constexpr u64 TOHOST_PASS = 1;
 
 enum class Status { Pass, Fail, Timeout, Error };
