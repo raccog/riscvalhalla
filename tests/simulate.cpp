@@ -13,6 +13,7 @@
 //   simulate <elf>            run a single ELF file and report it in detail
 //   simulate --isa-dir DIR    take the test suite from somewhere else
 //   simulate --max-steps N    step budget before a test counts as a timeout
+//   simulate --trace          with an ELF, print every instruction as it runs
 //   simulate -v               print a line for every test, not just failures
 
 #include "elf.h"
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -87,6 +89,123 @@ static std::string hex(u64 value) {
     return os.str();
 }
 
+// Width of the disassembly column in a trace line.
+constexpr int DISASM_WIDTH = 34;
+
+// --trace prints one line per instruction as the hart retires it:
+//
+//   step  pc                instr     disassembly                        effect
+//     78  00000000800001b4  00c58733  add     a4,a1,a2                   a4=0x2
+//
+// The disassembly column is lifted from the objdump listing that riscv-tests
+// writes next to every test binary. Without a .dump file beside the ELF the
+// column is dropped and the encoding is all there is to go on.
+struct Tracer {
+    std::map<u64, std::string> disasm;
+
+    void load(const fs::path &path);
+    void header() const;
+
+    // Prints the instruction that just ran: `pc` and `before` hold the hart
+    // state from before the step, `hart` holds it from after.
+    void line(const Hart &hart, u64 step, u64 pc, u32 raw, const u64 *before) const;
+};
+
+void Tracer::load(const fs::path &path) {
+    std::ifstream dump(path.string() + ".dump");
+    if (!dump) return;
+
+    std::string line;
+    while (std::getline(dump, line)) {
+        // Instruction lines look like
+        //   "    80000000:\t0500006f          \tj\t80000050 <reset_vector>"
+        // so an address followed by a colon is what marks one out.
+        const usize colon = line.find(':');
+        if (colon == std::string::npos) continue;
+        const usize start = line.find_first_not_of(" \t");
+        if (start == std::string::npos || start >= colon) continue;
+
+        const std::string addr = line.substr(start, colon - start);
+        if (addr.find_first_not_of("0123456789abcdef") != std::string::npos) continue;
+
+        // Past the colon come the encoding and then the instruction, a tab
+        // apart, with the mnemonic split from its operands by another tab.
+        usize field = line.find('\t', colon);
+        if (field == std::string::npos) continue;
+        field = line.find('\t', field + 1);
+        if (field == std::string::npos) continue;
+
+        std::string text = line.substr(field + 1);
+        const usize tab = text.find('\t');
+        if (tab != std::string::npos) {
+            std::ostringstream os;
+            os << std::setw(7) << std::left << text.substr(0, tab) << " "
+               << text.substr(tab + 1);
+            text = os.str();
+        }
+        std::replace(text.begin(), text.end(), '\t', ' ');
+        disasm[std::strtoull(addr.c_str(), nullptr, 16)] = text;
+    }
+}
+
+void Tracer::header() const {
+    std::ostringstream os;
+    os << "  step  pc                instr     ";
+    if (!disasm.empty()) {
+        os << std::setw(DISASM_WIDTH) << std::left << "disassembly" << " ";
+    }
+    os << "effect\n";
+    std::cout << os.str();
+}
+
+void Tracer::line(const Hart &hart, u64 step, u64 pc, u32 raw,
+                  const u64 *before) const {
+    std::ostringstream os;
+    os << std::dec << std::setw(6) << std::right << step << "  " << std::hex
+       << std::setfill('0') << std::setw(16) << pc << "  " << std::setw(8) << raw
+       << std::setfill(' ') << "  ";
+
+    if (!disasm.empty()) {
+        // The trailing space keeps a disassembly wider than its column from
+        // running into the effects.
+        const auto it = disasm.find(pc);
+        os << std::setw(DISASM_WIDTH) << std::left
+           << (it == disasm.end() ? std::string("?") : it->second) << " ";
+    }
+
+    // An instruction writes at most one register, but a trap changes several
+    // things at once, so the effects are collected rather than picked from.
+    std::string effect;
+    for (usize i = 1; i < NUM_REGS; ++i) {
+        if (hart.regs[i] != before[i]) {
+            effect += REG_NAMES[i] + std::string("=") + hex(hart.regs[i]) + " ";
+        }
+    }
+
+    // Stores leave no trace in the register file, so decode the address and
+    // the value out of the instruction that just ran.
+    const Instr instr{raw};
+    if (!hart.trapped && instr.opcode() == OPCODE_STORE) {
+        const u64 addr = before[instr.rs1()] + instr.immS();
+        const u32 width = instr.funct3() & 3;
+        u64 value = before[instr.rs2()];
+        if (width < 3) value &= (1ull << (8 << width)) - 1;
+        effect += "mem[" + hex(addr) + "]=" + hex(value) + " ";
+    }
+
+    if (hart.trapped) {
+        effect += "-> trap: " + std::string(exceptionName(hart.lastTrap.code))
+                + " (mtval=" + hex(hart.lastTrap.val) + ") pc=" + hex(hart.pc);
+    } else if (hart.pc != pc + 4) {
+        effect += "-> pc=" + hex(hart.pc);
+    }
+    os << effect;
+
+    std::string text = os.str();
+    while (!text.empty() && text.back() == ' ') text.pop_back();
+    std::cout << text << "\n";
+}
+
 // The tohost word lives at the start of the .tohost section.
 static bool findTohost(const Elf &elf, u64 &addr) {
     for (const auto &section : elf.sections) {
@@ -99,8 +218,9 @@ static bool findTohost(const Elf &elf, u64 &addr) {
 }
 
 // Loads `path` into `hart` and runs it until it reports through tohost, faults,
-// or burns through its step budget.
-static Result runElf(const fs::path &path, u64 maxSteps, Hart &hart) {
+// or burns through its step budget. A non-null `tracer` gets a line per step.
+static Result runElf(const fs::path &path, u64 maxSteps, Hart &hart,
+                     const Tracer *tracer = nullptr) {
     Result result;
 
     Elf elf;
@@ -163,11 +283,30 @@ static Result runElf(const fs::path &path, u64 maxSteps, Hart &hart) {
             return result;
         }
 
+        // The trace reports what the step changed, so the state it starts
+        // from has to be captured before taking it.
+        u64 before[NUM_REGS];
+        const u64 tracePc = hart.pc;
+        u32 traceRaw = 0;
+        if (tracer) {
+            for (usize i = 0; i < NUM_REGS; ++i) before[i] = hart.regs[i];
+            try {
+                traceRaw = hart.memory.fetch(tracePc);
+            } catch (const Exception &) {
+                // The step is about to trap on this same fetch, and the trace
+                // line will say so.
+            }
+        }
+
         try {
             hart.step();
         } catch (const Exception &e) {
             result.detail = std::string(exceptionName(e.code)) + " at pc=" + hex(hart.pc);
             return result;
+        }
+
+        if (tracer) {
+            tracer->line(hart, result.steps, tracePc, traceRaw, before);
         }
     }
 
@@ -221,9 +360,16 @@ static void dumpRegs(const Hart &hart) {
     }
 }
 
-static int runSingle(const fs::path &path, u64 maxSteps) {
+static int runSingle(const fs::path &path, u64 maxSteps, bool trace) {
     Hart hart;
-    Result result = runElf(path, maxSteps, hart);
+    Tracer tracer;
+    if (trace) {
+        tracer.load(path);
+        tracer.header();
+    }
+
+    Result result = runElf(path, maxSteps, hart, trace ? &tracer : nullptr);
+    if (trace) std::cout << "\n";
 
     std::cout << path.string() << ": " << statusText(result.status);
     if (!result.detail.empty()) {
@@ -318,6 +464,7 @@ static void usage(const char *program) {
         << DEFAULT_ISA_DIR << ")\n"
         << "  --max-steps N    steps before a test times out (default "
         << DEFAULT_MAX_STEPS << ")\n"
+        << "  --trace          print every instruction as it runs (needs an ELF)\n"
         << "  -v, --verbose    print a line for every test, not just failures\n"
         << "  -h, --help       show this message\n";
 }
@@ -326,6 +473,7 @@ int main(int argc, char **argv) {
     fs::path isaDir = DEFAULT_ISA_DIR;
     u64 maxSteps = DEFAULT_MAX_STEPS;
     bool verbose = false;
+    bool trace = false;
     fs::path single;
 
     for (int i = 1; i < argc; ++i) {
@@ -335,6 +483,8 @@ int main(int argc, char **argv) {
             return 0;
         } else if (arg == "-v" || arg == "--verbose") {
             verbose = true;
+        } else if (arg == "--trace") {
+            trace = true;
         } else if (arg == "--isa-dir" || arg == "--max-steps") {
             if (i + 1 >= argc) {
                 std::cerr << arg << " needs an argument\n";
@@ -358,7 +508,11 @@ int main(int argc, char **argv) {
     }
 
     if (!single.empty()) {
-        return runSingle(single, maxSteps);
+        return runSingle(single, maxSteps, trace);
+    }
+    if (trace) {
+        std::cerr << "--trace needs a single ELF file to run\n";
+        return 2;
     }
     return runAll(isaDir, maxSteps, verbose);
 }

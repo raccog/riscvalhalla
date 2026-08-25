@@ -22,8 +22,10 @@ tests: obj_dir/failures obj_dir/simulate riscv-tests
 	./obj_dir/failures
 	./obj_dir/simulate
 
+# Options go through SIM_ARGS, since make claims anything starting with a dash
+# for itself: make sim SIM_ARGS=--trace riscv-tests/isa/rv64ui-p-add
 sim: obj_dir/simulate riscv-tests
-	./obj_dir/simulate $(filter-out $@,$(MAKECMDGOALS))
+	./obj_dir/simulate $(SIM_ARGS) $(filter-out $@,$(MAKECMDGOALS))
 
 obj_dir/%: $(LIB_OBJS) obj_dir/tests/%.o
 	@mkdir -p obj_dir

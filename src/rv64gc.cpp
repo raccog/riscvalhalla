@@ -259,6 +259,7 @@ void Hart::loadElf(const Elf &elf) {
 void Hart::reset(u64 entry) {
     pc = entry;
     halted = false;
+    trapped = false;
     regs.clear();
     csrs.reset();
 }
@@ -709,12 +710,15 @@ void Hart::trapExit() {
 }
 
 void Hart::step() {
+    trapped = false;
     try {
         u64 next_pc = execute();
         regs[0] = 0;
         if (!halted)
             pc = next_pc;
     } catch (const Exception& e) {
+        trapped = true;
+        lastTrap = e;
         trapEntry(e);
     }
 }

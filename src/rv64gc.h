@@ -270,6 +270,12 @@ struct Hart {
     Csrs csrs;
     bool halted = false;
 
+    // What the last step() did with the instruction it ran: `trapped` is true
+    // when the instruction faulted instead of retiring, and `lastTrap` then
+    // describes the fault that was taken.
+    bool trapped = false;
+    Exception lastTrap{0, 0};
+
     Hart();
 
     void loadElf(const Elf &elf);
