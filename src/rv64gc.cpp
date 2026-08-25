@@ -270,16 +270,24 @@ u64 Hart::execute() {
     u64 next_pc = pc + 4;
     switch (instr.opcode()) {
     case OPCODE_JAL:
-        if (((pc + instr.immJ()) & 1) == 1) {
+        if (((pc + instr.immJ()) & 3) != 0) {
             throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immJ());
         }
         regs[instr.rd()] = pc + 4;
         next_pc = pc + instr.immJ();
         break;
-    case OPCODE_JALR:
-        next_pc = (regs[instr.rs1()] + instr.immI()) & ~1u;
+    case OPCODE_JALR: {
+        // JALR clears bit 0 of the target, but not bit 1: misa.C is hardwired
+        // off, so IALIGN is 32 and a target that is 2 mod 4 still traps. The
+        // exception is reported on the jalr itself, so rd must stay untouched.
+        u64 target = (regs[instr.rs1()] + instr.immI()) & ~1ull;
+        if ((target & 3) != 0) {
+            throw Exception(EXCEPTION_INSTR_MISALIGN, target);
+        }
         regs[instr.rd()] = pc + 4;
+        next_pc = target;
         break;
+    }
     case OPCODE_LUI:
         regs[instr.rd()] = instr.immU();
         break;
@@ -499,7 +507,7 @@ u64 Hart::execute() {
         switch (instr.funct3()) {
         case BRANCH_BNE:
             if (regs[instr.rs1()] != regs[instr.rs2()]) {
-                if (((pc + instr.immB()) & 1) == 1) {
+                if (((pc + instr.immB()) & 3) != 0) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
@@ -507,7 +515,7 @@ u64 Hart::execute() {
             break;
         case BRANCH_BEQ:
             if (regs[instr.rs1()] == regs[instr.rs2()]) {
-                if (((pc + instr.immB()) & 1) == 1) {
+                if (((pc + instr.immB()) & 3) != 0) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
@@ -516,7 +524,7 @@ u64 Hart::execute() {
         case BRANCH_BLT:
             if (static_cast<i64>(regs[instr.rs1()])
                     < static_cast<i64>(regs[instr.rs2()])) {
-                if (((pc + instr.immB()) & 1) == 1) {
+                if (((pc + instr.immB()) & 3) != 0) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
@@ -525,7 +533,7 @@ u64 Hart::execute() {
         case BRANCH_BGE:
             if (static_cast<i64>(regs[instr.rs1()])
                     >= static_cast<i64>(regs[instr.rs2()])) {
-                if (((pc + instr.immB()) & 1) == 1) {
+                if (((pc + instr.immB()) & 3) != 0) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
@@ -533,7 +541,7 @@ u64 Hart::execute() {
             break;
         case BRANCH_BLTU:
             if (regs[instr.rs1()] < regs[instr.rs2()]) {
-                if (((pc + instr.immB()) & 1) == 1) {
+                if (((pc + instr.immB()) & 3) != 0) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
@@ -541,7 +549,7 @@ u64 Hart::execute() {
             break;
         case BRANCH_BGEU:
             if (regs[instr.rs1()] >= regs[instr.rs2()]) {
-                if (((pc + instr.immB()) & 1) == 1) {
+                if (((pc + instr.immB()) & 3) != 0) {
                     throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
