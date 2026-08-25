@@ -195,6 +195,7 @@ public:
         }
         if (index == 0) {
             // This trashes anything that would set the x0 register
+            trashReg = 0;
             return trashReg;
         }
         return regs[index];
