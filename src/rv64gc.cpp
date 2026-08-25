@@ -176,16 +176,19 @@ void Registers::clear() {
     std::fill(std::begin(regs), std::end(regs), 0);
 }
 
-Csrs::Csrs() : regs(), implemented() {
+Csrs::Csrs() : regs(), implemented(), table() {
     implemented.set(MISA);
+    table[MISA] = {(2ull << 62), 0, ~0ull, MISA};
     implemented.set(MHARTID);
+    table[MHARTID] = {0, 0, ~0ull, MHARTID};
     reset();
 }
 
 void Csrs::reset() {
     std::fill(std::begin(regs), std::end(regs), 0);
-    regs[MISA] = (2ull << 62);
-    regs[MHARTID] = 0;
+    for (const auto &[addr, entry] : table) {
+        regs[addr] = entry.resetValue;
+    }
     privilege = PRIV_M;
 }
 
@@ -198,7 +201,12 @@ u64 Csrs::read(unsigned addr) {
     if ((addr & 0xff0) == 0x7b0) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
-    return regs[addr];
+    // Throw exception if not implemented
+    if (!implemented.test(addr)) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    const CsrEntry &entry = table[addr];
+    return regs[addr] & entry.readMask;
 }
 
 void Csrs::write(unsigned addr, u64 value) {
@@ -214,7 +222,12 @@ void Csrs::write(unsigned addr, u64 value) {
     if ((addr & 0xff0) == 0x7b0) {
         throw Exception(EXCEPTION_ILLEGAL_INSTR);
     }
-    regs[addr] = value;
+    // Throw exception if not implemented
+    if (!implemented.test(addr)) {
+        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+    }
+    const CsrEntry &entry = table[addr];
+    regs[addr] = (value & entry.writeMask) | (regs[addr] & ~entry.writeMask);
 }
 
 void Csrs::bitset(unsigned addr, u64 mask) {
@@ -612,9 +625,6 @@ void Hart::step() {
         if (!halted)
             pc = next_pc;
     } catch (const Exception& e) {
-        if (e.code == EXCEPTION_ILLEGAL_INSTR) {
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
-        }
         trapEntry();
     }
 }

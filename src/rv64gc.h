@@ -230,10 +230,18 @@ public:
     }
 };
 
+struct CsrEntry {
+    u64 resetValue;
+    u64 writeMask;
+    u64 readMask;
+    u16 addr;
+};
+
 struct Csrs {
 private:
     u64 regs[CSR_REGS];
     std::bitset<CSR_REGS> implemented;
+    std::map<u16, CsrEntry> table;
 
 public:
     u64 privilege = PRIV_M;
