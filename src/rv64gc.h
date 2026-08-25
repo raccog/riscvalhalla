@@ -50,6 +50,11 @@ constexpr u32 LOAD_BYTE_UNSIGNED = 0b100;
 constexpr u32 LOAD_HALF_UNSIGNED = 0b101;
 constexpr u32 LOAD_WORD_UNSIGNED = 0b110;
 
+constexpr u32 STORE_BYTE = 0b000;
+constexpr u32 STORE_HALF = 0b001;
+constexpr u32 STORE_WORD = 0b010;
+constexpr u32 STORE_DOUBLE = 0b011;
+
 constexpr u32 OP_ADD_SUB = 0b000;
 constexpr u32 OP_SLL = 0b001;
 constexpr u32 OP_SLT = 0b010;

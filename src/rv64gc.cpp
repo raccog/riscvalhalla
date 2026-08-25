@@ -237,6 +237,27 @@ void Hart::step() {
         case LOAD_WORD_UNSIGNED:
             regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 4);
             break;
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        }
+        break;
+    case OPCODE_STORE:
+        switch (instr.funct3()) {
+        case STORE_BYTE:
+            memory.write(regs[instr.rs1()] + instr.immS(), 1, regs[instr.rs2()] & 0xff);
+            break;
+        case STORE_HALF:
+            memory.write(regs[instr.rs1()] + instr.immS(), 2, regs[instr.rs2()] & 0xffff);
+            break;
+        case STORE_WORD:
+            memory.write(regs[instr.rs1()] + instr.immS(), 4, 
+                    regs[instr.rs2()] & 0xffffffff);
+            break;
+        case STORE_DOUBLE:
+            memory.write(regs[instr.rs1()] + instr.immS(), 8, regs[instr.rs2()]);
+            break;
+        default:
+            throw Exception(EXCEPTION_ILLEGAL_INSTR);
         }
         break;
     case OPCODE_OP:
