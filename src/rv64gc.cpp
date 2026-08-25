@@ -16,14 +16,14 @@ Memory::Memory() : regions{} {}
 
 u32 MemRegion::fetch(u64 pc) const {
     if (!contains(pc)) {
-        throw Exception(EXCEPTION_INSTR_ACCESS);
+        throw Exception(EXCEPTION_INSTR_ACCESS, pc);
     }
     // A full instruction is 32 bits, but a compressed one sitting at the very
     // end of a region only has 16 bits behind it, so fetch what is there and
     // let the decoder decide how much of it is an instruction.
     u64 width = std::min<u64>(4, base + size - pc);
     if (width < 2) {
-        throw Exception(EXCEPTION_INSTR_ACCESS);
+        throw Exception(EXCEPTION_INSTR_ACCESS, pc);
     }
     u32 instr = 0;
     for (u64 i = 0; i < width; ++i) {
@@ -34,7 +34,7 @@ u32 MemRegion::fetch(u64 pc) const {
 
 u64 MemRegion::read(u64 addr, u64 len) const {
     if (!contains(addr, len)) {
-        throw Exception(EXCEPTION_LOAD_ACCESS);
+        throw Exception(EXCEPTION_LOAD_ACCESS, addr);
     }
     u64 value = 0;
     for (u64 i = 0; i < len; ++i) {
@@ -45,7 +45,7 @@ u64 MemRegion::read(u64 addr, u64 len) const {
 
 void MemRegion::write(u64 addr, u64 len, u64 value) {
     if (!contains(addr, len)) {
-        throw Exception(EXCEPTION_STORE_ACCESS);
+        throw Exception(EXCEPTION_STORE_ACCESS, addr);
     }
     for (u64 i = 0; i < len; ++i) {
         data[addr - base + i] = static_cast<u8>(value >> (8 * i));
@@ -55,14 +55,14 @@ void MemRegion::write(u64 addr, u64 len, u64 value) {
 u32 Memory::fetch(u64 pc) const {
     // rv64gc includes the C extension, so instructions are 16-bit aligned.
     if (pc & 1) {
-        throw Exception(EXCEPTION_INSTR_MISALIGN);
+        throw Exception(EXCEPTION_INSTR_MISALIGN, pc);
     }
     for (const auto &[addr, region] : regions) {
         if (region.contains(pc)) {
             return region.fetch(pc);
         }
     }
-    throw Exception(EXCEPTION_INSTR_ACCESS);
+    throw Exception(EXCEPTION_INSTR_ACCESS, pc);
 }
 
 u64 Memory::read(u64 addr, u64 len) const {
@@ -71,7 +71,7 @@ u64 Memory::read(u64 addr, u64 len) const {
             return region.read(addr, len);
         }
     }
-    throw Exception(EXCEPTION_LOAD_ACCESS);
+    throw Exception(EXCEPTION_LOAD_ACCESS, addr);
 }
 
 void Memory::write(u64 addr, u64 len, u64 value) {
@@ -81,10 +81,10 @@ void Memory::write(u64 addr, u64 len, u64 value) {
             return;
         }
     }
-    throw Exception(EXCEPTION_STORE_ACCESS);
+    throw Exception(EXCEPTION_STORE_ACCESS, addr);
 }
 
-Exception::Exception(u64 _code, bool _interrupt) : code{_code}, interrupt{_interrupt} {}
+Exception::Exception(u64 _code, u64 _val, bool _interrupt) : code{_code}, val(_val), interrupt{_interrupt} {}
 
 void Memory::addRegion(u64 base, u64 size) {
     regions.insert({base, MemRegion(base, size)});
@@ -203,15 +203,15 @@ void Csrs::reset() {
 u64 Csrs::read(unsigned addr) {
     // Throw exception for reading without appropriate privilege
     if (privilege < ((addr >> 8) & 0b11)) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     // Throw exception for accessing debug registers
     if ((addr & 0xff0) == 0x7b0) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     // Throw exception if not implemented
     if (!implemented.test(addr)) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     const CsrEntry &entry = table[addr];
     return regs[addr] & entry.readMask;
@@ -220,19 +220,19 @@ u64 Csrs::read(unsigned addr) {
 void Csrs::write(unsigned addr, u64 value) {
     // Throw exception for writing to read-only CSRs
     if ((addr >> 10) == 0b11) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     // Throw exception for writing without appropriate privilege
     if (privilege < ((addr >> 8) & 0b11)) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     // Throw exception for accessing debug registers
     if ((addr & 0xff0) == 0x7b0) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     // Throw exception if not implemented
     if (!implemented.test(addr)) {
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, 0);
     }
     const CsrEntry &entry = table[addr];
     regs[addr] = (value & entry.writeMask) | (regs[addr] & ~entry.writeMask);
@@ -270,7 +270,7 @@ u64 Hart::execute() {
     switch (instr.opcode()) {
     case OPCODE_JAL:
         if (((pc + instr.immJ()) & 1) == 1) {
-            throw Exception(EXCEPTION_INSTR_MISALIGN);
+            throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immJ());
         }
         regs[instr.rd()] = pc + 4;
         next_pc = pc + instr.immJ();
@@ -309,7 +309,7 @@ u64 Hart::execute() {
             regs[instr.rd()] = memory.read(regs[instr.rs1()] + instr.immI(), 4);
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_STORE:
@@ -328,7 +328,7 @@ u64 Hart::execute() {
             memory.write(regs[instr.rs1()] + instr.immS(), 8, regs[instr.rs2()]);
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_OP:
@@ -342,7 +342,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = regs[instr.rs1()] - regs[instr.rs2()];
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         case OP_SLL:
@@ -374,11 +374,11 @@ u64 Hart::execute() {
                     >> regs[instr.rs2()];
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_OP_IMM:
@@ -406,7 +406,7 @@ u64 Hart::execute() {
         case OP_IMM_SLLI: {
             u64 shift = instr.immI() & 0x3f;
             if (shift >= 64) {
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             regs[instr.rd()] = regs[instr.rs1()] << shift;
             break;
@@ -414,7 +414,7 @@ u64 Hart::execute() {
         case OP_IMM_SRLI_SRAI: {
             u64 shift = instr.immI() & 0x3f;
             if (shift >= 64) {
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             switch (instr.immI() >> 6) {
             case FUNCT6_SRLI:
@@ -424,12 +424,12 @@ u64 Hart::execute() {
                 regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) >> shift;
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         }
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_OP_IMM_32:
@@ -451,11 +451,11 @@ u64 Hart::execute() {
                        >> instr.immI());
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_OP_32:
@@ -469,7 +469,7 @@ u64 Hart::execute() {
                 regs[instr.rd()] = sext<32>(regs[instr.rs1()] - regs[instr.rs2()]);
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         case OP_SLL:
@@ -487,11 +487,11 @@ u64 Hart::execute() {
                        >> regs[instr.rs2()]);
                 break;
             default:
-                throw Exception(EXCEPTION_ILLEGAL_INSTR);
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_BRANCH:
@@ -499,7 +499,7 @@ u64 Hart::execute() {
         case BRANCH_BNE:
             if (regs[instr.rs1()] != regs[instr.rs2()]) {
                 if (((pc + instr.immB()) & 1) == 1) {
-                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                    throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
             }
@@ -507,7 +507,7 @@ u64 Hart::execute() {
         case BRANCH_BEQ:
             if (regs[instr.rs1()] == regs[instr.rs2()]) {
                 if (((pc + instr.immB()) & 1) == 1) {
-                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                    throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
             }
@@ -516,7 +516,7 @@ u64 Hart::execute() {
             if (static_cast<i64>(regs[instr.rs1()])
                     < static_cast<i64>(regs[instr.rs2()])) {
                 if (((pc + instr.immB()) & 1) == 1) {
-                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                    throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
             }
@@ -525,7 +525,7 @@ u64 Hart::execute() {
             if (static_cast<i64>(regs[instr.rs1()])
                     >= static_cast<i64>(regs[instr.rs2()])) {
                 if (((pc + instr.immB()) & 1) == 1) {
-                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                    throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
             }
@@ -533,7 +533,7 @@ u64 Hart::execute() {
         case BRANCH_BLTU:
             if (regs[instr.rs1()] < regs[instr.rs2()]) {
                 if (((pc + instr.immB()) & 1) == 1) {
-                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                    throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
             }
@@ -541,13 +541,13 @@ u64 Hart::execute() {
         case BRANCH_BGEU:
             if (regs[instr.rs1()] >= regs[instr.rs2()]) {
                 if (((pc + instr.immB()) & 1) == 1) {
-                    throw Exception(EXCEPTION_INSTR_MISALIGN);
+                    throw Exception(EXCEPTION_INSTR_MISALIGN, pc + instr.immB());
                 }
                 next_pc = pc + instr.immB();
             }
             break;
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_SYSTEM:
@@ -571,49 +571,79 @@ u64 Hart::execute() {
             }
             break;
         case SYSTEM_CSRRW: {
-            u64 old = (instr.rd() != 0) ? csrs.read(instr.func12()) : 0;
-            csrs.write(instr.func12(), regs[instr.rs1()]);
-            if (instr.rd() != 0)
-                regs[instr.rd()] = old;
-            break;
+            try {
+                u64 old = (instr.rd() != 0) ? csrs.read(instr.func12()) : 0;
+                csrs.write(instr.func12(), regs[instr.rs1()]);
+                if (instr.rd() != 0)
+                    regs[instr.rd()] = old;
+                break;
+            } catch (Exception &e) {
+                e.val = pc;
+                throw e;
+            }
         }
         case SYSTEM_CSRRS: {
-            u64 old = csrs.read(instr.func12());
-            if (instr.rs1() != 0)
-                csrs.bitset(instr.func12(), regs[instr.rs1()]);
-            regs[instr.rd()] = old;
-            break;
+            try {
+                u64 old = csrs.read(instr.func12());
+                if (instr.rs1() != 0)
+                    csrs.bitset(instr.func12(), regs[instr.rs1()]);
+                regs[instr.rd()] = old;
+                break;
+            } catch (Exception &e) {
+                e.val = pc;
+                throw e;
+            }
         }
         case SYSTEM_CSRRC: {
-            u64 old = csrs.read(instr.func12());
-            if (instr.rs1() != 0)
-                csrs.bitclear(instr.func12(), regs[instr.rs1()]);
-            regs[instr.rd()] = old;
-            break;
+            try {
+                u64 old = csrs.read(instr.func12());
+                if (instr.rs1() != 0)
+                    csrs.bitclear(instr.func12(), regs[instr.rs1()]);
+                regs[instr.rd()] = old;
+                break;
+            } catch (Exception &e) {
+                e.val = pc;
+                throw e;
+            }
         }
         case SYSTEM_CSRRWI: {
-            u64 old = (instr.rd() != 0) ? csrs.read(instr.func12()) : 0;
-            csrs.write(instr.func12(), instr.rs1());
-            if (instr.rd() != 0)
-                regs[instr.rd()] = old;
-            break;
+            try {
+                u64 old = (instr.rd() != 0) ? csrs.read(instr.func12()) : 0;
+                csrs.write(instr.func12(), instr.rs1());
+                if (instr.rd() != 0)
+                    regs[instr.rd()] = old;
+                break;
+            } catch (Exception &e) {
+                e.val = pc;
+                throw e;
+            }
         }
         case SYSTEM_CSRRSI: {
-            u64 old = csrs.read(instr.func12());
-            if (instr.rs1() != 0)
-                csrs.bitset(instr.func12(), instr.rs1());
-            regs[instr.rd()] = old;
-            break;
+            try {
+                u64 old = csrs.read(instr.func12());
+                if (instr.rs1() != 0)
+                    csrs.bitset(instr.func12(), instr.rs1());
+                regs[instr.rd()] = old;
+                break;
+            } catch (Exception &e) {
+                e.val = pc;
+                throw e;
+            }
         }
         case SYSTEM_CSRRCI: {
-            u64 old = csrs.read(instr.func12());
-            if (instr.rs1() != 0)
-                csrs.bitclear(instr.func12(), instr.rs1());
-            regs[instr.rd()] = old;
-            break;
+            try {
+                u64 old = csrs.read(instr.func12());
+                if (instr.rs1() != 0)
+                    csrs.bitclear(instr.func12(), instr.rs1());
+                regs[instr.rd()] = old;
+                break;
+            } catch (Exception &e) {
+                e.val = pc;
+                throw e;
+            }
         }
         default:
-            throw Exception(EXCEPTION_ILLEGAL_INSTR);
+            throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
         }
         break;
     case OPCODE_MISC_MEM:
@@ -621,7 +651,7 @@ u64 Hart::execute() {
         // But they do not throw illegal instruction exceptions
         break;
     default:
-        throw Exception(EXCEPTION_ILLEGAL_INSTR);
+        throw Exception(EXCEPTION_ILLEGAL_INSTR, pc);
     }
     return next_pc;
 }
@@ -631,6 +661,8 @@ void Hart::trapEntry(const Exception &e) {
     csrs.regs[MEPC] = pc;
     // Save cause and interrupt bit to MCAUSE
     csrs.regs[MCAUSE] = (e.code & 0x3f) | (e.interrupt) ? (1ull << 63) : 0;
+    // Save val to MTVAL
+    csrs.regs[MTVAL] = e.val;
 
     u64 mstatus = csrs.regs[MSTATUS];
     // Disable interrupts

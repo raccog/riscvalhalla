@@ -147,9 +147,10 @@ i64 sext(u64 value) {
 
 struct Exception {
     u64 code;
+    u64 val;
     bool interrupt;
 
-    Exception(u64 code, bool interrupt = false);
+    Exception(u64 code, u64 val, bool interrupt = false);
 };
 
 struct MemRegion {
