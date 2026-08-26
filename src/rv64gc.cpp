@@ -692,7 +692,7 @@ u64 Hart::execute() {
                 break;
             }
             case SYSTEM_EBREAK:
-                break;
+                throw Exception(EXCEPTION_BREAKPOINT, pc);
             case SYSTEM_MRET:
                 trapExit();
                 next_pc = pc;
