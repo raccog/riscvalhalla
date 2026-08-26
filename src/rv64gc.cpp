@@ -244,7 +244,7 @@ Csrs::Csrs() {
     // Machine Trap Setup
     // mstatus is a superset of sstatus: MIE/MPIE/MPP plus the SIE/SPIE/SPP
     // bits that the sstatus alias writes into the same storage.
-    implement({0, 0x19aa, 0x19aa, MSTATUS});
+    implement({(7ull << 32), 0x19aa, 0x19aa, MSTATUS});
     implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, ~0ull, ~0ull, MEDELEG});
     implement({0, ~0ull, ~0ull, MIDELEG});
@@ -785,6 +785,29 @@ u64 Hart::execute() {
 }
 
 void Hart::trapEntry(const Exception &e) {
+    if (csrs.privilege == PRIV_U) {
+        // Save PC to SEPC
+        csrs.regs[SEPC] = pc;
+        // Save cause and interrupt bit to SCAUSE
+        csrs.regs[SCAUSE] = (e.code & 0x3f) | (e.interrupt ? (1ull << 63) : 0);
+        // Save val to STVAL
+        csrs.regs[STVAL] = e.val;
+
+        u64 sstatus = csrs.regs[SSTATUS];
+        // Save privilege
+        sstatus = (sstatus & ~(1ull << 8)) | ((csrs.privilege & 1) << 8);
+        // Save interrupt enable bit
+        sstatus = (sstatus & ~(1ull << 5)) | (((sstatus >> 1) & 1) << 5);
+        // Disable interrupts
+        sstatus &= ~(1ull << 1);
+        csrs.regs[SSTATUS] = sstatus;
+
+        csrs.privilege = PRIV_S;
+        // Jump to trap handler
+        pc = csrs.regs[STVEC];
+        return;
+    }
+
     // Save PC to MEPC
     csrs.regs[MEPC] = pc;
     // Save cause and interrupt bit to MCAUSE
@@ -807,6 +830,20 @@ void Hart::trapEntry(const Exception &e) {
 }
 
 void Hart::trapExit() {
+    if (csrs.privilege == PRIV_S) {
+        // Restore interrupts
+        csrs.regs[SSTATUS] &= ~(1ull << 3);
+        csrs.regs[SSTATUS] |= ((csrs.regs[SSTATUS] >> 7) & 1) << 3;
+        csrs.regs[SSTATUS] |= (1ull << 7);
+        // Restore privilege
+        csrs.privilege = (csrs.regs[SSTATUS] >> 11) & PRIV_M;
+        // Clear SPP
+        csrs.regs[SSTATUS] &= ~(PRIV_M << 11);
+
+        // Jump to return address
+        pc = csrs.regs[SEPC];
+    }
+
     // Restore interrupts
     csrs.regs[MSTATUS] &= ~(1ull << 3);
     csrs.regs[MSTATUS] |= ((csrs.regs[MSTATUS] >> 7) & 1) << 3;
