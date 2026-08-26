@@ -71,6 +71,7 @@ constexpr u32 FUNCT7_ADD = 0b0000000;
 constexpr u32 FUNCT7_SUB = 0b0100000;
 constexpr u32 FUNCT7_SRL = 0b0000000;
 constexpr u32 FUNCT7_SRA = 0b0100000;
+constexpr u32 FUNCT7_MULDIV = 0b0000001;
 
 constexpr u32 OP_IMM_ADDI = 0b000;
 constexpr u32 OP_IMM_SLTI = 0b010;

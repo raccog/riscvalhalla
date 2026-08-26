@@ -467,6 +467,9 @@ u64 Hart::execute() {
             case FUNCT7_SUB:
                 regs[instr.rd()] = regs[instr.rs1()] - regs[instr.rs2()];
                 break;
+            case FUNCT7_MULDIV:
+                regs[instr.rd()] = regs[instr.rs1()] * regs[instr.rs2()];
+                break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
