@@ -3,7 +3,7 @@ TEST_SRC := tests/failures.cpp tests/simulate.cpp
 LIB_OBJS  := $(LIB_SRC:%.cpp=obj_dir/%.o)
 TEST_OBJS := $(TEST_SRC:%.cpp=obj_dir/%.o)
 
-CXXFLAGS += -MMD -MP -Wall -Wextra -std=c++20 -Isrc
+CXXFLAGS += -MMD -MP -Wall -Wextra -std=c++20 -Isrc -g
 
 obj_dir/%.o: %.cpp
 	@mkdir -p $(dir $@)

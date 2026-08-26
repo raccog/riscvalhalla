@@ -531,6 +531,19 @@ u64 Hart::execute() {
                 regs[instr.rd()] = static_cast<u64>(product >> 64);
                 break;
                                }
+            case MULDIV_DIV:
+                if (regs[instr.rs2()] == 0) {
+                    regs[instr.rd()] = static_cast<u64>(-1);
+                    break;
+                }
+                if (regs[instr.rs1()] == (1ull << 63) 
+                        && static_cast<i64>(regs[instr.rs2()]) == -1) {
+                    regs[instr.rd()] = regs[instr.rs1()];
+                    break;
+                }
+                regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()])
+                    / static_cast<i64>(regs[instr.rs2()]);
+                break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
