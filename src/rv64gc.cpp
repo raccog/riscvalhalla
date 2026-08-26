@@ -192,7 +192,8 @@ Csrs::Csrs() {
     // Supervisor Trap Setup
     // sstatus is the S-mode view of mstatus (SIE, SPIE, SPP) and sie/sip are
     // the S-mode views of mie/mip (SSI, STI, SEI).
-    implement({0, 0x122, 0x122, SSTATUS, MSTATUS});
+    // UXL is read-only 2 (64-bit U-mode) and is visible through sstatus too.
+    implement({0, 0x122, 0x300000122, SSTATUS, MSTATUS});
     implement({0, 0x222, 0x222, SIE, MIE});
     implement({0, ~0ull, ~0ull, STVEC});
     implement({0, 0xffffffff, 0xffffffff, SCOUNTEREN});
@@ -244,7 +245,9 @@ Csrs::Csrs() {
     // Machine Trap Setup
     // mstatus is a superset of sstatus: MIE/MPIE/MPP plus the SIE/SPIE/SPP
     // bits that the sstatus alias writes into the same storage.
-    implement({(7ull << 32), 0x19aa, 0x19aa, MSTATUS});
+    // UXL (33:32) and SXL (35:34) are read-only 2: S and U mode are both
+    // 64-bit only, so they reset to 2 and are excluded from the write mask.
+    implement({0xa00000000, 0x19aa, 0xf000019aa, MSTATUS});
     implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, ~0ull, ~0ull, MEDELEG});
     implement({0, ~0ull, ~0ull, MIDELEG});
