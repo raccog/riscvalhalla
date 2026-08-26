@@ -785,7 +785,9 @@ u64 Hart::execute() {
 }
 
 void Hart::trapEntry(const Exception &e) {
-    if (csrs.privilege == PRIV_U) {
+    u64 deleg = e.interrupt ? csrs.regs[MIDELEG] : csrs.regs[MEDELEG];
+    bool to_s = csrs.privilege <= PRIV_S && ((deleg >> (e.code & 0x3f)) & 1);
+    if (to_s) {
         // Save PC to SEPC
         csrs.regs[SEPC] = pc;
         // Save cause and interrupt bit to SCAUSE
@@ -832,16 +834,19 @@ void Hart::trapEntry(const Exception &e) {
 void Hart::trapExit() {
     if (csrs.privilege == PRIV_S) {
         // Restore interrupts
-        csrs.regs[SSTATUS] &= ~(1ull << 3);
-        csrs.regs[SSTATUS] |= ((csrs.regs[SSTATUS] >> 7) & 1) << 3;
-        csrs.regs[SSTATUS] |= (1ull << 7);
+        u64 sstatus = csrs.read(SSTATUS);
+        sstatus &= ~(1ull << 1);
+        sstatus |= ((csrs.regs[SSTATUS] >> 5) & 1) << 1;
+        sstatus |= (1ull << 5);
+        csrs.write(SSTATUS, sstatus);
         // Restore privilege
-        csrs.privilege = (csrs.regs[SSTATUS] >> 11) & PRIV_M;
+        csrs.privilege = (csrs.regs[SSTATUS] >> 8) & PRIV_S;
         // Clear SPP
-        csrs.regs[SSTATUS] &= ~(PRIV_M << 11);
+        csrs.regs[SSTATUS] &= ~(PRIV_S << 8);
 
         // Jump to return address
         pc = csrs.regs[SEPC];
+        return;
     }
 
     // Restore interrupts
