@@ -250,7 +250,7 @@ Csrs::Csrs() {
     implement({0xa00000000, 0x19aa, 0xf000019aa, MSTATUS});
     implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, ~0ull, ~0ull, MEDELEG});
-    implement({0, ~0ull, ~0ull, MIDELEG});
+    implement({0, 0x222, ~0ull, MIDELEG});
     // Likewise mie covers both the M and S interrupt-enable bits.
     implement({0, 0xaaa, 0xaaa, MIE});
     implement({0, ~0ull, ~0ull, MTVEC});
@@ -260,7 +260,7 @@ Csrs::Csrs() {
     implement({0, ~0ull, ~0ull, MEPC});
     implement({0, ~0ull, 0x800000000000001f, MCAUSE});
     implement({0, ~0ull, ~0ull, MTVAL});
-    implement({0, ~0ull, ~0ull, MIP});
+    implement({0, 0x222, 0xaaa, MIP});
     implement({0, ~0ull, ~0ull, MTINST});
     implement({0, ~0ull, ~0ull, MTVAL2});
     // Machine Indirect
@@ -724,11 +724,17 @@ u64 Hart::execute() {
             case SYSTEM_EBREAK:
                 throw Exception(EXCEPTION_BREAKPOINT, pc);
             case SYSTEM_MRET:
-                trapExit();
+                if (csrs.privilege < PRIV_M) {
+                    throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
+                }
+                trapExit(PRIV_M);
                 next_pc = pc;
                 break;
             case SYSTEM_SRET:
-                trapExit();
+                if (csrs.privilege < PRIV_S) {
+                    throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
+                }
+                trapExit(PRIV_S);
                 next_pc = pc;
                 break;
             case SYSTEM_WFI:
@@ -823,6 +829,14 @@ u64 Hart::execute() {
     return next_pc;
 }
 
+static u64 trapVector(u64 tvec, u64 code, bool interrupt) {
+    u64 base = tvec & ~3ull;
+    if (interrupt && (tvec & 3) == 1) {
+        return base + 4 * (code & 0x3f);
+    }
+    return base;
+}
+
 void Hart::trapEntry(const Exception &e) {
     u64 deleg = e.interrupt ? csrs.regs[MIDELEG] : csrs.regs[MEDELEG];
     bool to_s = csrs.privilege <= PRIV_S && ((deleg >> (e.code & 0x3f)) & 1);
@@ -834,18 +848,18 @@ void Hart::trapEntry(const Exception &e) {
         // Save val to STVAL
         csrs.regs[STVAL] = e.val;
 
-        u64 sstatus = csrs.regs[SSTATUS];
+        u64 sstatus = csrs.regs[MSTATUS];
         // Save privilege
         sstatus = (sstatus & ~(1ull << 8)) | ((csrs.privilege & 1) << 8);
         // Save interrupt enable bit
         sstatus = (sstatus & ~(1ull << 5)) | (((sstatus >> 1) & 1) << 5);
         // Disable interrupts
         sstatus &= ~(1ull << 1);
-        csrs.regs[SSTATUS] = sstatus;
+        csrs.regs[MSTATUS] = sstatus;
 
         csrs.privilege = PRIV_S;
         // Jump to trap handler
-        pc = csrs.regs[STVEC];
+        pc = trapVector(csrs.regs[STVEC], e.code, e.interrupt);
         return;
     }
 
@@ -867,21 +881,19 @@ void Hart::trapEntry(const Exception &e) {
 
     csrs.privilege = PRIV_M;
     // Jump to trap handler
-    pc = csrs.regs[MTVEC];
+    pc = trapVector(csrs.regs[MTVEC], e.code, e.interrupt);
 }
 
-void Hart::trapExit() {
-    if (csrs.privilege == PRIV_S) {
+void Hart::trapExit(u64 from) {
+    if (from == PRIV_S) {
         // Restore interrupts
-        u64 sstatus = csrs.read(SSTATUS);
-        sstatus &= ~(1ull << 1);
-        sstatus |= ((csrs.regs[SSTATUS] >> 5) & 1) << 1;
-        sstatus |= (1ull << 5);
-        csrs.write(SSTATUS, sstatus);
+        csrs.regs[MSTATUS] &= ~(1ull << 1);
+        csrs.regs[MSTATUS] |= ((csrs.regs[MSTATUS] >> 5) & 1) << 1;
+        csrs.regs[MSTATUS] |= (1ull << 5);
         // Restore privilege
-        csrs.privilege = (csrs.regs[SSTATUS] >> 8) & PRIV_S;
+        csrs.privilege = (csrs.regs[MSTATUS] >> 8) & PRIV_S;
         // Clear SPP
-        csrs.regs[SSTATUS] &= ~(PRIV_S << 8);
+        csrs.regs[MSTATUS] &= ~(PRIV_S << 8);
 
         // Jump to return address
         pc = csrs.regs[SEPC];
@@ -901,8 +913,41 @@ void Hart::trapExit() {
     pc = csrs.regs[MEPC];
 }
 
+std::optional<u64> Hart::pendingInterrupt() {
+    u64 pending = csrs.regs[MIP] & csrs.regs[MIE];
+    if (!pending) return std::nullopt;
+
+    // Priority: MEI, MSI, MTI, SEI, SSI, STI
+    constexpr u64 order[] = {11, 3, 7, 9, 1, 5};
+
+    u64 mPending = pending & ~csrs.regs[MIDELEG];
+    u64 sPending = pending &  csrs.regs[MIDELEG];
+
+    bool mEnabled = csrs.privilege < PRIV_M ||
+        (csrs.privilege == PRIV_M && ((csrs.regs[MSTATUS] >> 3) & 1));
+    bool sEnabled = csrs.privilege < PRIV_S ||
+        (csrs.privilege == PRIV_S && ((csrs.regs[MSTATUS] >> 1) & 1));
+
+    for (u64 bit : order) {
+        if (mEnabled && (mPending >> bit) & 1)
+            return bit;
+    }
+    for (u64 bit : order) {
+        if (sEnabled && (sPending >> bit) & 1)
+            return bit;
+    }
+    return std::nullopt;
+}
+
 void Hart::step() {
     trapped = false;
+    if (auto cause = pendingInterrupt()) {
+        Exception e{*cause, 0, true};
+        trapped = true;
+        lastTrap = e;
+        trapEntry(e);
+        return;
+    }
     try {
         u64 next_pc = execute();
         regs[0] = 0;

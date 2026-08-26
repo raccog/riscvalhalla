@@ -377,8 +377,9 @@ struct Hart {
     Instr decode();
     u64 execute();
 
+    std::optional<u64> pendingInterrupt();
     void trapEntry(const Exception &e);
-    void trapExit();
+    void trapExit(u64 from);
 
     // Puts the hart back into its post-reset state with the PC at `entry`.
     void reset(u64 entry);
