@@ -701,6 +701,8 @@ u64 Hart::execute() {
                 trapExit();
                 next_pc = pc;
                 break;
+            case SYSTEM_WFI:
+                break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }

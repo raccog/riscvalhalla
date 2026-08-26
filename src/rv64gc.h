@@ -106,6 +106,7 @@ constexpr u32 SYSTEM_ECALL = 0;
 constexpr u32 SYSTEM_EBREAK = 1;
 constexpr u32 SYSTEM_MRET = 0x302;
 constexpr u32 SYSTEM_SRET = 0x102;
+constexpr u32 SYSTEM_WFI = 0x105;
 
 constexpr unsigned CSR_REGS = 4096;
 
