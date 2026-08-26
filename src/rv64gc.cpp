@@ -245,9 +245,11 @@ Csrs::Csrs() {
     // Machine Trap Setup
     // mstatus is a superset of sstatus: MIE/MPIE/MPP plus the SIE/SPIE/SPP
     // bits that the sstatus alias writes into the same storage.
+    // TSR (22) traps SRET in S-mode. TVM (20) and TW (21) stay read-only zero:
+    // there is no MMU to protect and WFI retires immediately.
     // UXL (33:32) and SXL (35:34) are read-only 2: S and U mode are both
     // 64-bit only, so they reset to 2 and are excluded from the write mask.
-    implement({0xa00000000, 0x19aa, 0xf000019aa, MSTATUS});
+    implement({0xa00000000, 0x4019aa, 0xf004019aa, MSTATUS});
     implement({(2ull << 62), 0, ~0ull, MISA});
     implement({0, ~0ull, ~0ull, MEDELEG});
     implement({0, 0x222, ~0ull, MIDELEG});
@@ -731,7 +733,11 @@ u64 Hart::execute() {
                 next_pc = pc;
                 break;
             case SYSTEM_SRET:
-                if (csrs.privilege < PRIV_S) {
+                // mstatus.TSR keeps S-mode from returning on its own, so that
+                // M-mode software can step in on every sret.
+                if (csrs.privilege < PRIV_S
+                        || (csrs.privilege == PRIV_S
+                            && ((csrs.regs[MSTATUS] >> 22) & 1))) {
                     throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
                 }
                 trapExit(PRIV_S);
