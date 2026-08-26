@@ -498,6 +498,14 @@ u64 Hart::execute() {
                     < static_cast<i64>(regs[instr.rs2()])) ? 1 : 0;
             break;
         case OP_SLTU:
+            // MULHU
+            if (instr.funct7() == FUNCT7_MULDIV) {
+                __int128 product =
+                    static_cast<__int128>(regs[instr.rs1()])
+                    * static_cast<__int128>(regs[instr.rs2()]);
+                regs[instr.rd()] = static_cast<u64>(product >> 64);
+                break;
+            }
             regs[instr.rd()] = (regs[instr.rs1()] < regs[instr.rs2()]) ? 1 : 0;
             break;
         case OP_XOR:
