@@ -67,11 +67,18 @@ constexpr u32 OP_SRL_SRA = 0b101;
 constexpr u32 OP_OR = 0b110;
 constexpr u32 OP_AND = 0b111;
 
-constexpr u32 FUNCT7_ADD = 0b0000000;
-constexpr u32 FUNCT7_SUB = 0b0100000;
-constexpr u32 FUNCT7_SRL = 0b0000000;
-constexpr u32 FUNCT7_SRA = 0b0100000;
+constexpr u32 FUNCT7_OP = 0b0000000;
+constexpr u32 FUNCT7_OP_ALT = 0b0100000;
 constexpr u32 FUNCT7_MULDIV = 0b0000001;
+
+constexpr u32 MULDIV_MUL = 0b000;
+constexpr u32 MULDIV_MULH = 0b001;
+constexpr u32 MULDIV_MULHU = 0b011;
+constexpr u32 MULDIV_MULHSU = 0b010;
+constexpr u32 MULDIV_DIV = 0b100;
+constexpr u32 MULDIV_DIVU = 0b101;
+constexpr u32 MULDIV_REM = 0b110;
+constexpr u32 MULDIV_REMU = 0b111;
 
 constexpr u32 OP_IMM_ADDI = 0b000;
 constexpr u32 OP_IMM_SLTI = 0b010;

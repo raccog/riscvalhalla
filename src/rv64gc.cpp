@@ -458,74 +458,77 @@ u64 Hart::execute() {
         }
         break;
     case OPCODE_OP:
-        switch (instr.funct3()) {
-        case OP_ADD_SUB:
-            switch (instr.funct7()) {
-            case FUNCT7_ADD:
+        switch (instr.funct7()) {
+        case FUNCT7_OP:
+            switch (instr.funct3()) {
+            case OP_ADD_SUB:
                 regs[instr.rd()] = regs[instr.rs1()] + regs[instr.rs2()];
                 break;
-            case FUNCT7_SUB:
-                regs[instr.rd()] = regs[instr.rs1()] - regs[instr.rs2()];
+            case OP_SLL:
+                regs[instr.rd()] = regs[instr.rs1()] << regs[instr.rs2()];
                 break;
-            case FUNCT7_MULDIV:
-                regs[instr.rd()] = regs[instr.rs1()] * regs[instr.rs2()];
+            case OP_SLT:
+                regs[instr.rd()] = (static_cast<i64>(regs[instr.rs1()])
+                        < static_cast<i64>(regs[instr.rs2()])) ? 1 : 0;
+                break;
+            case OP_SLTU:
+                regs[instr.rd()] = (regs[instr.rs1()] < regs[instr.rs2()]) ? 1 : 0;
+                break;
+            case OP_XOR:
+                regs[instr.rd()] = regs[instr.rs1()] ^ regs[instr.rs2()];
+                break;
+            case OP_OR:
+                regs[instr.rd()] = regs[instr.rs1()] | regs[instr.rs2()];
+                break;
+            case OP_AND:
+                regs[instr.rd()] = regs[instr.rs1()] & regs[instr.rs2()];
+                break;
+            case OP_SRL_SRA:
+                regs[instr.rd()] = regs[instr.rs1()] >> regs[instr.rs2()];
                 break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
-        case OP_SLL:
-            // MULH
-            if (instr.funct7() == FUNCT7_MULDIV) {
+        case FUNCT7_OP_ALT:
+            switch (instr.funct3()) {
+            case OP_ADD_SUB:
+                regs[instr.rd()] = regs[instr.rs1()] - regs[instr.rs2()];
+                break;
+            case OP_SRL_SRA:
+                regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) 
+                    >> regs[instr.rs2()];
+                break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
+            }
+            break;
+        case FUNCT7_MULDIV:
+            switch (instr.funct3()) {
+            case MULDIV_MUL:
+                regs[instr.rd()] = regs[instr.rs1()] * regs[instr.rs2()];
+                break;
+            case MULDIV_MULH: {
                 __int128 product =
                     static_cast<__int128>(static_cast<i64>(regs[instr.rs1()]))
                     * static_cast<__int128>(static_cast<i64>(regs[instr.rs2()]));
                 regs[instr.rd()] = static_cast<u64>(product >> 64);
                 break;
             }
-            regs[instr.rd()] = regs[instr.rs1()] << regs[instr.rs2()];
-            break;
-        case OP_SLT:
-            // MULHSU
-            if (instr.funct7() == FUNCT7_MULDIV) {
+            case MULDIV_MULHSU: {
                 __int128 product =
                     static_cast<__int128>(static_cast<i64>(regs[instr.rs1()]))
                     * static_cast<__int128>(regs[instr.rs2()]);
                 regs[instr.rd()] = static_cast<u64>(product >> 64);
                 break;
-            }
-            regs[instr.rd()] = (static_cast<i64>(regs[instr.rs1()])
-                    < static_cast<i64>(regs[instr.rs2()])) ? 1 : 0;
-            break;
-        case OP_SLTU:
-            // MULHU
-            if (instr.funct7() == FUNCT7_MULDIV) {
+                                }
+            case MULDIV_MULHU: {
                 __int128 product =
                     static_cast<__int128>(regs[instr.rs1()])
                     * static_cast<__int128>(regs[instr.rs2()]);
                 regs[instr.rd()] = static_cast<u64>(product >> 64);
                 break;
-            }
-            regs[instr.rd()] = (regs[instr.rs1()] < regs[instr.rs2()]) ? 1 : 0;
-            break;
-        case OP_XOR:
-            regs[instr.rd()] = regs[instr.rs1()] ^ regs[instr.rs2()];
-            break;
-        case OP_OR:
-            regs[instr.rd()] = regs[instr.rs1()] | regs[instr.rs2()];
-            break;
-        case OP_AND:
-            regs[instr.rd()] = regs[instr.rs1()] & regs[instr.rs2()];
-            break;
-        case OP_SRL_SRA:
-            switch (instr.funct7()) {
-            case FUNCT7_SRL:
-                regs[instr.rd()] = regs[instr.rs1()] >> regs[instr.rs2()];
-                break;
-            case FUNCT7_SRA:
-                regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()]) 
-                    >> regs[instr.rs2()];
-                break;
+                               }
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
@@ -615,10 +618,10 @@ u64 Hart::execute() {
         switch (instr.funct3()) {
         case OP_ADD_SUB:
             switch (instr.funct7()) {
-            case FUNCT7_ADD:
+            case FUNCT7_OP:
                 regs[instr.rd()] = sext<32>(regs[instr.rs1()] + regs[instr.rs2()]);
                 break;
-            case FUNCT7_SUB:
+            case FUNCT7_OP_ALT:
                 regs[instr.rd()] = sext<32>(regs[instr.rs1()] - regs[instr.rs2()]);
                 break;
             default:
@@ -631,11 +634,11 @@ u64 Hart::execute() {
             break;
         case OP_SRL_SRA:
             switch (instr.funct7()) {
-            case FUNCT7_SRL:
+            case FUNCT7_OP:
                 regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
                         >> regs[instr.rs2()]);
                 break;
-            case FUNCT7_SRA:
+            case FUNCT7_OP_ALT:
                 regs[instr.rd()] = sext<32>(static_cast<i32>(regs[instr.rs1()])
                        >> regs[instr.rs2()]);
                 break;
