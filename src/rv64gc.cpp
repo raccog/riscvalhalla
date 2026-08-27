@@ -544,6 +544,13 @@ u64 Hart::execute() {
                 regs[instr.rd()] = static_cast<i64>(regs[instr.rs1()])
                     / static_cast<i64>(regs[instr.rs2()]);
                 break;
+            case MULDIV_DIVU:
+                if (regs[instr.rs2()] == 0) {
+                    regs[instr.rd()] = ~0ull;
+                    break;
+                }
+                regs[instr.rd()] = regs[instr.rs1()] / regs[instr.rs2()];
+                break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
