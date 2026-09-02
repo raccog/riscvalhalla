@@ -657,32 +657,50 @@ u64 Hart::execute() {
         }
         break;
     case OPCODE_OP_32:
-        switch (instr.funct3()) {
-        case OP_ADD_SUB:
-            switch (instr.funct7()) {
-            case FUNCT7_OP:
+        switch (instr.funct7()) {
+        case FUNCT7_OP:
+            switch (instr.funct3()) {
+            case OP_ADD_SUB:
                 regs[instr.rd()] = sext<32>(regs[instr.rs1()] + regs[instr.rs2()]);
                 break;
-            case FUNCT7_OP_ALT:
+            case OP_SLL:
+                regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
+                        << regs[instr.rs2()]);
+                break;
+            case OP_SRL_SRA:
+                    regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
+                            >> regs[instr.rs2()]);
+                    break;
+            default:
+                throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
+            }
+            break;
+        case FUNCT7_OP_ALT:
+            switch (instr.funct3()) {
+            case OP_ADD_SUB:
                 regs[instr.rd()] = sext<32>(regs[instr.rs1()] - regs[instr.rs2()]);
+                break;
+            case OP_SRL_SRA:
+                regs[instr.rd()] = sext<32>(static_cast<i32>(regs[instr.rs1()])
+                       >> regs[instr.rs2()]);
                 break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);
             }
             break;
-        case OP_SLL:
-            regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
-                    << regs[instr.rs2()]);
-            break;
-        case OP_SRL_SRA:
-            switch (instr.funct7()) {
-            case FUNCT7_OP:
+        case FUNCT7_MULDIV:
+            switch (instr.funct3()) {
+            case MULDIV_MULW:
                 regs[instr.rd()] = sext<32>(static_cast<u32>(regs[instr.rs1()])
-                        >> regs[instr.rs2()]);
+                        * static_cast<u32>(regs[instr.rs2()]));
                 break;
-            case FUNCT7_OP_ALT:
-                regs[instr.rd()] = sext<32>(static_cast<i32>(regs[instr.rs1()])
-                       >> regs[instr.rs2()]);
+            case MULDIV_DIVW:
+                if (static_cast<i32>(regs[instr.rs2()]) == 0) {
+                    regs[instr.rd()] = 0xffffffff;
+                    break;
+                }
+                regs[instr.rd()] = static_cast<i32>(regs[instr.rs1()])
+                    / static_cast<i32>(regs[instr.rs2()]);
                 break;
             default:
                 throw Exception(EXCEPTION_ILLEGAL_INSTR, instr.raw);

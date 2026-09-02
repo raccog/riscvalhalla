@@ -80,6 +80,12 @@ constexpr u32 MULDIV_DIVU = 0b101;
 constexpr u32 MULDIV_REM = 0b110;
 constexpr u32 MULDIV_REMU = 0b111;
 
+constexpr u32 MULDIV_MULW = 0b000;
+constexpr u32 MULDIV_DIVW = 0b100;
+constexpr u32 MULDIV_DIVUW = 0b101;
+constexpr u32 MULDIV_REMW = 0b110;
+constexpr u32 MULDIV_REMUW = 0b111;
+
 constexpr u32 OP_IMM_ADDI = 0b000;
 constexpr u32 OP_IMM_SLTI = 0b010;
 constexpr u32 OP_IMM_SLTIU = 0b011;
