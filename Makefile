@@ -3,6 +3,8 @@ TEST_SRC := tests/failures.cpp tests/simulate.cpp
 LIB_OBJS  := $(LIB_SRC:%.cpp=obj_dir/%.o)
 TEST_OBJS := $(TEST_SRC:%.cpp=obj_dir/%.o)
 
+RISCV_PREFIX ?= riscv64-elf-
+
 CXXFLAGS += -MMD -MP -Wall -Wextra -std=c++20 -Isrc -g
 
 obj_dir/%.o: %.cpp
@@ -39,7 +41,7 @@ lint:
 
 .PHONY: riscv-tests
 riscv-tests:
-	make -k -C riscv-tests/isa XLEN=64 RISCV_PREFIX=riscv64-elf-
+	make -k -C riscv-tests/isa XLEN=64 RISCV_PREFIX=$(RISCV_PREFIX)
 
 RVCC      := riscv64-elf-gcc
 RVOBJCOPY := riscv64-elf-objcopy
