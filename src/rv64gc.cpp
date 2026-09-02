@@ -696,7 +696,7 @@ u64 Hart::execute() {
                 break;
             case MULDIV_DIVW:
                 if (static_cast<i32>(regs[instr.rs2()]) == 0) {
-                    regs[instr.rd()] = 0xffffffff;
+                    regs[instr.rd()] = 0xffffffffffffffff;
                     break;
                 }
                 regs[instr.rd()] = static_cast<i32>(regs[instr.rs1()])
